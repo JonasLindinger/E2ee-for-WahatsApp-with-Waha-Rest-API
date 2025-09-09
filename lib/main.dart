@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/screens/connection.dart';
 
-const serverURL = "http://10.0.2.2:3000"; // localhost (for testing)
+const String serverURL = "http://10.0.2.2:3000"; // localhost (for testing)
+const String defaultSessionName = "default";
 
 void main() {
   runApp(const MyApp());

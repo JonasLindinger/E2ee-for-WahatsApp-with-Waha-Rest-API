@@ -18,7 +18,6 @@ class ConnectionScreen extends StatefulWidget {
 
 class _ConnectionScreenState extends State<ConnectionScreen> {
   Uint8List? qrCodeBytes; // store the PNG bytes
-  String defaultSessionName = "default";
 
   @override
   void initState() {
