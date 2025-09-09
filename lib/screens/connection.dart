@@ -1,0 +1,156 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:secure_messanger_app/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+
+import 'main.dart';
+
+class ConnectionScreen extends StatefulWidget {
+  const ConnectionScreen({super.key});
+
+  @override
+  State<ConnectionScreen> createState() => _ConnectionScreenState();
+}
+
+class _ConnectionScreenState extends State<ConnectionScreen> {
+  Uint8List? qrCodeBytes; // store the PNG bytes
+  String defaultSessionName = "default";
+
+  @override
+  void initState() {
+    super.initState();
+    HandleSession();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+        child:
+        qrCodeBytes == null ?
+          const Text("Loading...") :
+          Image.memory(qrCodeBytes!)
+    );
+  }
+
+  void HandleSession() async {
+    await CheckSessionAndCreateASessionIfNecessary();
+
+    // Load the messanger!
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen())
+    );
+  }
+
+  Future<void> CheckSessionAndCreateASessionIfNecessary() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    const SessionNamePreference = "SESSIONNAME";
+    final session = prefs.getString(SessionNamePreference);
+
+    if (session == null) {
+      // Create Session
+      await CreateSession(defaultSessionName);
+      await GetQRCode(defaultSessionName);
+
+      // Save the session name
+      prefs.setString(SessionNamePreference, defaultSessionName);
+    }
+    else {
+      // Join Session
+      print("Session should still be working!");
+    }
+  }
+
+  Future<void> CreateSession(String sessionName) async {
+    final url = serverURL + "/api/sessions/";
+    final uri = Uri.parse(url);
+    print("Creating session...");
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": sessionName,
+          "start": true,
+        }),
+      );
+
+      final body = response.body;
+      final json = jsonDecode(body);
+
+      await waitForStatus(sessionName, "SCAN_QR_CODE");
+
+      print("Created Session!");
+    } catch (e, st) {
+      print("Something went wrong trying to create a session: $e");
+      print(st);
+    }
+  }
+
+  Future<void> GetQRCode(String sessionName) async {
+    final url = "$serverURL/api/$sessionName/auth/qr";
+    final uri = Uri.parse(url);
+
+    try {
+      print("Requesting QR code!");
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        // If server sends base64 JSON, decode first
+        // final json = jsonDecode(response.body);
+        // final base64String = json['image']; // adjust key if needed
+        // final bytes = base64Decode(base64String);
+
+        // If server sends raw PNG bytes
+        final bytes = response.bodyBytes;
+        if (bytes == null) {
+          // Error
+          print("QR Code is not valid!");
+        }
+        else {
+          setState(() {
+            qrCodeBytes = bytes as Uint8List?;
+          });
+
+          await waitForStatus(sessionName, "WORKING");
+        }
+      } else {
+        print("Error: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error fetching QR code: $e");
+    }
+  }
+
+  Future<void> waitForStatus(String sessionName, String status) async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    final url = serverURL + "/api/sessions/" + sessionName;
+    final uri = Uri.parse(url);
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {"Content-Type": "application/json"},
+      );
+
+      final body = response.body;
+      final json = jsonDecode(body);
+
+      if (json["status"] == status) {
+        // We logged in!
+        return;
+      }
+    } catch (e, st) {
+      print("Something went wrong trying to get the status of a session: $e");
+      print(st);
+    }
+
+    await waitForStatus(sessionName, status);
+  }
+}
