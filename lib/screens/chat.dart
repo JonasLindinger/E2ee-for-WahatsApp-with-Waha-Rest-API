@@ -45,6 +45,13 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
 
+    scrollController.addListener(() {
+      if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
+        // Load new messages
+        getMessages();
+      }
+    });
+
     Future.delayed(
       const Duration(milliseconds: 500),
         () => ScrollDown(),
@@ -62,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
   FocusNode myFocusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
   List<Message> messanges = [];
+  bool isLoading = false;
 
   void ScrollDown() {
     scrollController.animateTo(
@@ -225,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
         "downloadMedia": "true", // Todo
         "chatId": chat.id.toString(),
         "limit": "20",
-        "offset": "0", // Todo
+        "offset": messanges.length.toString(),
         "session": sessionName,
       }
     );
