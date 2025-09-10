@@ -23,9 +23,6 @@ class _MessageWidgetState extends State<MessageWidget> {
   Duration duration = Duration.zero;
   Duration position = Duration.zero;
 
-  late Message message;
-
-  // Track subscriptions so we can cancel them explicitly
   late final StreamSubscription<PlayerState> _stateSub;
   late final StreamSubscription<Duration> _durationSub;
   late final StreamSubscription<Duration> _positionSub;
@@ -33,7 +30,6 @@ class _MessageWidgetState extends State<MessageWidget> {
   @override
   void initState() {
     super.initState();
-    message = widget.message;
 
     _stateSub = audioPlayer.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
@@ -62,13 +58,15 @@ class _MessageWidgetState extends State<MessageWidget> {
     _stateSub.cancel();
     _durationSub.cancel();
     _positionSub.cancel();
-
     audioPlayer.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final message = widget.message;
+
     final bool isCurrentUser = message.fromMe;
     final alignment =
     isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
