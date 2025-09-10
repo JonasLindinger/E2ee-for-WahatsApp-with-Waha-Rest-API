@@ -68,6 +68,9 @@ class _MainScreenState extends State<MainScreen> {
       print("Something went wrong trying to get the status of a session: $e");
       print(st);
     }
+
+    await Future.delayed(const Duration(seconds: 3));
+    GetChats(sessionName);
   }
 
   @override
