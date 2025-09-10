@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/screens/chat.dart';
+import 'package:secure_messanger_app/widgets/ChatWidget.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -87,88 +88,24 @@ class _MainScreenState extends State<MainScreen> {
         margin: EdgeInsets.only(top: 20),
         child: ListView.builder(
           itemCount: chats.length,
-          itemBuilder: (context, index) =>
-            GestureDetector(
-              onTap: OpenChat,
-              child: Container(
-                width: 350,
-                height: 70,
-                margin: EdgeInsets.only(top: 5, bottom: 5, right: 10, left: 10),
-                child: Container (child: Row(
-                  children: [
-                    Container(
-                      // Do the Image
-                      width: 50,
-                      height: 50,
-                      child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: chats[index].picture != "" ?
-                          Image.network(
-                            chats[index].picture,
-                          ) :
-                          Container(
-                            color: Colors.green,
-                          )
-                      ),
-                    ),
-                    SizedBox(
-                      width: 20,
-                    ),
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.only(right: 30),
-                        height: 50,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              chats[index].name,
-                              textAlign: TextAlign.left,
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white
-                              ),
-                            ),
-                            SizedBox(
-                              height: 1,
-                            ),
-                            Text(
-                              chats[index].lastMessage?["body"] ?? "",
-                              textAlign: TextAlign.left,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey
-                              ),
-                              softWrap: true,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              ),
-            )
-          ),
+          itemBuilder: (context, index) => ChatWidget(
+            chat: chats[index],
+            OpenChat: () => {
+              OpenChat(chats[index])
+            }
+          )
         ),
       )
     );
   }
 
-  void OpenChat() {
+  void OpenChat(Chat chat) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ChatScreen())
+      MaterialPageRoute(builder: (context) => ChatScreen(
+        chat: chat,
+        sessionName: defaultSessionName,
+      ))
     );
   }
-}
-
-class Chat {
-  String id = "";
-  String name = "";
-  String picture = "";
-  Map<String, dynamic>? lastMessage;
 }
