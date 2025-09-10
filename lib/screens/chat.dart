@@ -271,6 +271,10 @@ class _ChatScreenState extends State<ChatScreen> {
           m.to = (message["to"] ?? "").toString();
           m.message = (message["body"] ?? "").toString();
           m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          if (m.hasMedia) {
+            message["media"]["rawurl"] = message["media"]["url"];
+            message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
+          }
           m.media = (message["media"]);
           return m;
         }).toList();
@@ -345,6 +349,7 @@ class _ChatScreenState extends State<ChatScreen> {
           m.message = (message["body"] ?? "").toString();
           m.hasMedia = (message["hasMedia"] ?? false) as bool;
           if (m.hasMedia) {
+            message["media"]["rawurl"] = message["media"]["url"];
             message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
           }
           m.media = (message["media"]);
