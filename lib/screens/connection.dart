@@ -27,11 +27,21 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-        child:
-        qrCodeBytes == null ?
-          const Text("Loading...") :
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+          child:
+          qrCodeBytes == null ?
+          const Text( // Todo: Make animation instead of Loading text
+            "Loading...",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 28,
+            ),
+          ) :
           Image.memory(qrCodeBytes!)
+      ),
     );
   }
 
