@@ -27,10 +27,18 @@ class _MainScreenState extends State<MainScreen> {
 
     scrollController.addListener(() {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
+        if (!mounted) return; // State was disposed; abort.
+
         // Load new messages
         getChats(defaultSessionName, false);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    scrollController.dispose();
+    super.dispose();
   }
 
   void HandleIncomingMessages(String sessionName) async {
@@ -55,6 +63,8 @@ class _MainScreenState extends State<MainScreen> {
         uri,
         headers: {"Content-Type": "application/json"},
       );
+
+      if (!mounted) return; // State was disposed; abort.
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
@@ -110,7 +120,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> Update(bool loop, String sessionName) async {
+    if (!mounted) return; // State was disposed; abort.
     if (loop && chats.length != 0) await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return; // State was disposed; abort.
 
     await getChats(sessionName, true);
 

@@ -41,7 +41,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (myFocusNode.hasFocus) {
         // cause a delay so that the keyboard has time to show up
         Future.delayed(const Duration(milliseconds: 500), () => {
-        ScrollDown(),
+        if (mounted)
+          ScrollDown(),
         });
       }
     });
@@ -49,6 +50,7 @@ class _ChatScreenState extends State<ChatScreen> {
     scrollController.addListener(() {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
         // Load new messages
+        if (!mounted) return; // State was disposed; abort.
         getMessages();
       }
     });
@@ -227,6 +229,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
       await Update(false);
 
+      if (!mounted) return; // State was disposed; abort.
+
       ScrollDown();
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
@@ -251,6 +255,8 @@ class _ChatScreenState extends State<ChatScreen> {
         uri,
         headers: {"Content-Type": "application/json"},
       );
+
+      if (!mounted) return; // State was disposed; abort.
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final json = jsonDecode(response.body);
@@ -303,7 +309,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> Update(bool loop) async {
+    if (!mounted) return; // State was disposed; abort.
     if (loop) await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return; // State was disposed; abort.
 
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
@@ -321,6 +329,8 @@ class _ChatScreenState extends State<ChatScreen> {
         uri,
         headers: {"Content-Type": "application/json"},
       );
+
+      if (!mounted) return; // State was disposed; abort.
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;

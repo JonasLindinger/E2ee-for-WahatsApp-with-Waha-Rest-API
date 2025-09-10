@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -23,24 +25,32 @@ class _MessageWidgetState extends State<MessageWidget> {
 
   late Message message;
 
+  // Track subscriptions so we can cancel them explicitly
+  late final StreamSubscription<PlayerState> _stateSub;
+  late final StreamSubscription<Duration> _durationSub;
+  late final StreamSubscription<Duration> _positionSub;
+
   @override
   void initState() {
     super.initState();
     message = widget.message;
 
-    audioPlayer.onPlayerStateChanged.listen((state) {
+    _stateSub = audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
       setState(() {
         isPlaying = state == PlayerState.playing;
       });
     });
 
-    audioPlayer.onDurationChanged.listen((newDuration) {
+    _durationSub = audioPlayer.onDurationChanged.listen((newDuration) {
+      if (!mounted) return;
       setState(() {
         duration = newDuration;
       });
     });
 
-    audioPlayer.onPositionChanged.listen((newPosition) {
+    _positionSub = audioPlayer.onPositionChanged.listen((newPosition) {
+      if (!mounted) return;
       setState(() {
         position = newPosition;
       });
@@ -49,6 +59,10 @@ class _MessageWidgetState extends State<MessageWidget> {
 
   @override
   void dispose() {
+    _stateSub.cancel();
+    _durationSub.cancel();
+    _positionSub.cancel();
+
     audioPlayer.dispose();
     super.dispose();
   }
