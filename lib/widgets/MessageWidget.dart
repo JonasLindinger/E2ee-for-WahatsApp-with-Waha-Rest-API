@@ -190,7 +190,7 @@ class _MessageWidgetState extends State<MessageWidget> {
                   message.message,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     fontSize: 14,
                   ),
                 ),
