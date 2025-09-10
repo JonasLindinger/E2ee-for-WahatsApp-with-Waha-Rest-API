@@ -35,6 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
     sessionName = widget.sessionName;
 
     getMessages();
+    Update(true);
 
     myFocusNode.addListener(() {
       if (myFocusNode.hasFocus) {
@@ -69,7 +70,6 @@ class _ChatScreenState extends State<ChatScreen> {
   FocusNode myFocusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
   List<Message> messanges = [];
-  bool isLoading = false;
 
   void ScrollDown() {
     scrollController.animateTo(
@@ -155,6 +155,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 borderRadius: BorderRadius.circular(22),
               ),
               child: TextField(
+                style: TextStyle(
+                  color: Colors.white,
+                  decorationColor: Colors.white,
+                ),
                 controller: messageController,
                 focusNode: myFocusNode,
                 decoration: InputDecoration(
@@ -170,7 +174,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
-                    borderSide: const BorderSide(color: Colors.green, width: 2),
                   ),
                 ),
                 obscureText: false,
@@ -199,6 +202,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> sendMessage(String text) async {
+    if (text == null) return;
+    if (text.isEmpty) return;
+
     final url = serverURL + "/api/sendText";
     final uri = Uri.parse(url);
 
@@ -219,6 +225,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
+      await Update(false);
+
       ScrollDown();
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
@@ -235,7 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
         "limit": "20",
         "offset": messanges.length.toString(),
         "session": sessionName,
-      }
+      },
     );
 
     try {
@@ -247,30 +255,120 @@ class _ChatScreenState extends State<ChatScreen> {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final json = jsonDecode(response.body);
 
-        for (final message in json) {
-          Message newMessage = new Message();
-          newMessage.id = message["id"];
-          newMessage.timestamp = message["timestamp"];
-          newMessage.from = message["from"];
-          newMessage.fromMe = message["fromMe"];
-          newMessage.to = message["to"];
-          newMessage.message = message["body"];
-          newMessage.hasMedia = message["hasMedia"];
+        // Build the fetched messages list
+        final List<Message> fetched = (json as List<dynamic>).map((message) {
+          final m = Message();
+          m.id = (message["id"] ?? "").toString();
+          m.timestamp = (message["timestamp"] ?? 0) as int;
+          m.from = (message["from"] ?? "").toString();
+          m.fromMe = (message["fromMe"] ?? false) as bool;
+          m.to = (message["to"] ?? "").toString();
+          m.message = (message["body"] ?? "").toString();
+          m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          return m;
+        }).toList();
 
-          messanges.add(newMessage);
+        // Sort fetched batch by timestamp (newest -> oldest)
+        fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+        // Deduplicate by id before merging
+        final Set<String> existingIds = messanges.map((m) => m.id).toSet();
+        bool updated = false;
+
+        for (final m in fetched) {
+          if (m.id.isEmpty) continue;
+          if (m.message == null) continue;
+          if (m.message == "") continue;
+          if (m.message == " ") continue;
+          if (!existingIds.contains(m.id)) {
+            messanges.add(m);
+            existingIds.add(m.id);
+            updated = true;
+          }
         }
 
-        setState(() {
-
-        });
+        if (updated) {
+          // Ensure the whole list is newest -> oldest
+          messanges.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          setState(() {});
+        }
       } else {
         debugPrint("getMessages failed: ${response.statusCode} ${response.body}");
       }
-
     } catch (e, st) {
       print("Something went wrong trying to get the chat messages$e");
       print(st);
     }
+  }
+
+  Future<void> Update(bool loop) async {
+    if (loop) await Future.delayed(const Duration(seconds: 3));
+
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "offset": "0",
+        "session": sessionName,
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+
+        final List<Message> fetched = data.map((message) {
+          final m = Message();
+          m.id = (message["id"] ?? "").toString();
+          m.timestamp = (message["timestamp"] ?? 0) as int;
+          m.from = (message["from"] ?? "").toString();
+          m.fromMe = (message["fromMe"] ?? false) as bool;
+          m.to = (message["to"] ?? "").toString();
+          m.message = (message["body"] ?? "").toString();
+          m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          return m;
+        }).toList();
+
+        // Sort fetched batch by timestamp (newest -> oldest)
+        fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+        // Deduplicate by id before merging
+        final Set<String> existingIds = messanges.map((m) => m.id).toSet();
+        bool updated = false;
+
+        for (final m in fetched) {
+          if (m.id.isEmpty) continue;
+          if (m.message == null) continue;
+          if (m.message == "") continue;
+          if (m.message == " ") continue;
+          if (!existingIds.contains(m.id)) {
+            messanges.add(m);
+            existingIds.add(m.id);
+            updated = true;
+          }
+        }
+
+        if (updated) {
+          // Keep list newest -> oldest
+          messanges.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          setState(() {});
+        }
+      } else {
+        debugPrint("getMessages failed: ${response.statusCode} ${response.body}");
+      }
+    } catch (e, st) {
+      print("Something went wrong trying to get the chat messages$e");
+      print(st);
+    }
+
+    if (loop) Update(loop);
   }
 }
 
