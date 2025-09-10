@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
+import '../screens/ImageInspection.dart';
+
 class MessageWidget extends StatefulWidget {
   final Message message;
 
@@ -94,14 +96,24 @@ class _MessageWidgetState extends State<MessageWidget> {
           child: Column(
             children: [
               if (message.hasMedia && (message.media['mimetype'] as String?)?.toLowerCase().startsWith('image/') == true)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    // make it reasonably wide in the bubble
-                    width: 130,
-                    // optionally cap height so tall images don't take over
-                    // height: 220,
-                    child: blurredImage(message.media['url'].toString()),
+                GestureDetector(
+                  onTap: () => {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ImageInspectionScreen(
+                      message: message,
+                    ))
+                  ),
+                },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      // make it reasonably wide in the bubble
+                      width: 130,
+                      // optionally cap height so tall images don't take over
+                      // height: 220,
+                      child: blurredImage(message.media['url'].toString()),
+                    ),
                   ),
                 ),
               if (message.hasMedia && (message.media['mimetype'] as String?)?.toLowerCase().startsWith('audio/') == true)
@@ -228,7 +240,6 @@ class _MessageWidgetState extends State<MessageWidget> {
       ),
     );
   }
-
 
   String formatTime(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
