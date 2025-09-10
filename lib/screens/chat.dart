@@ -289,6 +289,14 @@ class _ChatScreenState extends State<ChatScreen> {
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
 
+          // Check if the message has content to display or is just useless
+          bool hasContent = false;
+          if (m.hasMedia) hasContent = true;
+          if (m.message.isNotEmpty) hasContent = true;
+
+          // If the message has no content, it's useless and we don't display it.
+          if (!hasContent) continue;
+
           if (m.timestamp > newestMessageTimeStamp) {
             newestMessageTimeStamp = m.timestamp;
           }
