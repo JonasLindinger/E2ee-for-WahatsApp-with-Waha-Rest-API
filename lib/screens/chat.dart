@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -28,14 +29,18 @@ class _ChatScreenState extends State<ChatScreen> {
   late Chat chat;
   late String sessionName;
 
+  int newestMessageTimeStamp = 0;
+  int oldestMessageTimeStamp = 0;
+  bool isPulling = false;
+
   @override
   void initState() {
     super.initState();
     chat = widget.chat;
     sessionName = widget.sessionName;
 
-    getMessages();
-    Update(true);
+    getMessages(); // Get's the current messages
+    StartUpdate(); // Checks for new messages
 
     myFocusNode.addListener(() {
       if (myFocusNode.hasFocus) {
@@ -51,7 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
         // Load new messages
         if (!mounted) return; // State was disposed; abort.
-        getMessages();
+        getOldMessages(); // gets the next old messages
       }
     });
 
@@ -227,9 +232,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
-      await Update(false);
-
-      if (!mounted) return; // State was disposed; abort.
+      CheckForNewMessanges();
 
       ScrollDown();
     } catch (e, st) {
@@ -238,18 +241,16 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> getMessages() async {
-    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
-    final uri = Uri.parse(url).replace(
-      queryParameters: {
-        "downloadMedia": "true", // Todo
-        "chatId": chat.id.toString(),
-        "limit": "20",
-        "offset": messanges.length.toString(),
-        "session": sessionName,
-      },
-    );
+  Future<void> SendGetMessagesAPI(Uri uri) async {
+    if (isPulling) {
+      await waitForCondition(
+        () => !isPulling,
+        pollInterval: const Duration(milliseconds: 50),
+        timeout: const Duration(seconds: 10),
+      );
+    }
 
+    isPulling = true;
     try {
       final response = await http.get(
         uri,
@@ -272,7 +273,6 @@ class _ChatScreenState extends State<ChatScreen> {
           m.message = (message["body"] ?? "").toString();
           m.hasMedia = (message["hasMedia"] ?? false) as bool;
           if (m.hasMedia) {
-            message["media"]["rawurl"] = message["media"]["url"];
             message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
           }
           m.media = (message["media"]);
@@ -288,9 +288,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
-          if (m.message == null) continue;
-          if (m.message == "") continue;
-          if (m.message == " ") continue;
+
+          if (m.timestamp > newestMessageTimeStamp) {
+            newestMessageTimeStamp = m.timestamp;
+          }
+          if (oldestMessageTimeStamp == 0) {
+            oldestMessageTimeStamp = m.timestamp;
+          }
+          if (m.timestamp < oldestMessageTimeStamp) {
+            oldestMessageTimeStamp = m.timestamp;
+          }
+
           if (!existingIds.contains(m.id)) {
             messanges.add(m);
             existingIds.add(m.id);
@@ -310,13 +318,36 @@ class _ChatScreenState extends State<ChatScreen> {
       print("Something went wrong trying to get the chat messages$e");
       print(st);
     }
+
+    isPulling = false;
   }
 
-  Future<void> Update(bool loop) async {
+  Future<void> StartUpdate() async {
     if (!mounted) return; // State was disposed; abort.
-    if (loop) await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return; // State was disposed; abort.
 
+    CheckForNewMessanges();
+
+    StartUpdate();
+  }
+
+  Future<void> CheckForNewMessanges() async {
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "filter.timestamp.gte": newestMessageTimeStamp.toString(),
+        "session": sessionName,
+      },
+    );
+
+    await SendGetMessagesAPI(uri);
+  }
+
+  Future<void> getMessages() async {
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
@@ -328,66 +359,23 @@ class _ChatScreenState extends State<ChatScreen> {
       },
     );
 
-    try {
-      final response = await http.get(
-        uri,
-        headers: {"Content-Type": "application/json"},
-      );
+    await SendGetMessagesAPI(uri);
+  }
 
-      if (!mounted) return; // State was disposed; abort.
+  Future<void> getOldMessages() async {
+    print("Pulling old: " + oldestMessageTimeStamp.toString() + " - " + newestMessageTimeStamp.toString());
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "filter.timestamp.lte": oldestMessageTimeStamp.toString(),
+        "session": sessionName,
+      },
+    );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-
-        final List<Message> fetched = data.map((message) {
-          final m = Message();
-          m.id = (message["id"] ?? "").toString();
-          m.timestamp = (message["timestamp"] ?? 0) as int;
-          m.from = (message["from"] ?? "").toString();
-          m.fromMe = (message["fromMe"] ?? false) as bool;
-          m.to = (message["to"] ?? "").toString();
-          m.message = (message["body"] ?? "").toString();
-          m.hasMedia = (message["hasMedia"] ?? false) as bool;
-          if (m.hasMedia) {
-            message["media"]["rawurl"] = message["media"]["url"];
-            message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
-          }
-          m.media = (message["media"]);
-          return m;
-        }).toList();
-
-        // Sort fetched batch by timestamp (newest -> oldest)
-        fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-        // Deduplicate by id before merging
-        final Set<String> existingIds = messanges.map((m) => m.id).toSet();
-        bool updated = false;
-
-        for (final m in fetched) {
-          if (m.id.isEmpty) continue;
-          if (m == null) continue;
-          if ((m.message == "" || m.message == " ") && !(m.hasMedia)) continue;
-          if (!existingIds.contains(m.id)) {
-            messanges.add(m);
-            existingIds.add(m.id);
-            updated = true;
-          }
-        }
-
-        if (updated) {
-          // Keep list newest -> oldest
-          messanges.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-          setState(() {});
-        }
-      } else {
-        debugPrint("getMessages failed: ${response.statusCode} ${response.body}");
-      }
-    } catch (e, st) {
-      print("Something went wrong trying to get the chat messages$e");
-      print(st);
-    }
-
-    if (loop) Update(loop);
+    await SendGetMessagesAPI(uri);
   }
 
   String resolveMediaUrl(String rawUrl, String serverUrl) {
@@ -408,6 +396,21 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
     return uri.toString();
+  }
+
+  Future<void> waitForCondition(
+      FutureOr<bool> Function() condition, {
+        Duration pollInterval = const Duration(milliseconds: 50),
+        Duration? timeout,
+      }) async {
+    final sw = Stopwatch()..start();
+    while (true) {
+      if (await condition()) return;
+      if (timeout != null && sw.elapsed >= timeout) {
+        throw TimeoutException('Condition not met within $timeout');
+      }
+      await Future.delayed(pollInterval);
+    }
   }
 }
 
