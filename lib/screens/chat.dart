@@ -265,6 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
           m.to = (message["to"] ?? "").toString();
           m.message = (message["body"] ?? "").toString();
           m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          m.media = (message["media"]);
           return m;
         }).toList();
 
@@ -333,6 +334,10 @@ class _ChatScreenState extends State<ChatScreen> {
           m.to = (message["to"] ?? "").toString();
           m.message = (message["body"] ?? "").toString();
           m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          if (m.hasMedia) {
+            message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
+          }
+          m.media = (message["media"]);
           return m;
         }).toList();
 
@@ -345,9 +350,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
-          if (m.message == null) continue;
-          if (m.message == "") continue;
-          if (m.message == " ") continue;
+          if (m == null) continue;
+          if ((m.message == "" || m.message == " ") && !(m.hasMedia)) continue;
           if (!existingIds.contains(m.id)) {
             messanges.add(m);
             existingIds.add(m.id);
@@ -369,6 +373,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (loop) Update(loop);
+  }
+
+  String resolveMediaUrl(String rawUrl, String serverUrl) {
+    final server = Uri.parse(serverUrl);
+    Uri uri = Uri.parse(rawUrl);
+
+    // Handle relative paths like "/files/img.jpg"
+    if (!uri.hasScheme) {
+      return server.resolve(rawUrl).toString();
+    }
+
+    // Rewrite localhost/loopback to your server host
+    if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
+      uri = uri.replace(
+        scheme: server.scheme,
+        host: server.host,
+        port: server.hasPort ? server.port : null,
+      );
+    }
+    return uri.toString();
   }
 }
 

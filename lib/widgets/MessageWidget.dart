@@ -35,13 +35,34 @@ class MessageWidget extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
           // Remove alignment here so the container sizes to its child
-          child: Text(
-            message.message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
+          child: Column(
+              children: [
+                if (message.hasMedia && (message.media['mimetype'] as String?)?.toLowerCase().startsWith('image/') == true)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      // make it reasonably wide in the bubble
+                      width: MediaQuery.of(context).size.width * 0.6,
+                      // optionally cap height so tall images don't take over
+                      // height: 220,
+                      child: Image.network(
+                        message.media['url'].toString(),
+                        fit: BoxFit.cover, // or BoxFit.contain if you don't want cropping
+                        errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white70),
+                      ),
+                    ),
+                  ),
+
+                if (message.message.isNotEmpty)
+                  Text(
+                    message.message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+              ]
           ),
         ),
       ),
@@ -57,5 +78,6 @@ class Message {
   String to = "";
   String message = "";
   bool hasMedia = false;
+  dynamic media;
   // Todo: Add Media
 }
