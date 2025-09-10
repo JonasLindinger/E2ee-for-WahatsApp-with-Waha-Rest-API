@@ -88,7 +88,7 @@ class _MainScreenState extends State<MainScreen> {
         child: ListView.builder(
           itemCount: chats.length,
           itemBuilder: (context, index) =>
-              GestureDetector(
+            GestureDetector(
               onTap: OpenChat,
               child: Container(
                 width: 350,
