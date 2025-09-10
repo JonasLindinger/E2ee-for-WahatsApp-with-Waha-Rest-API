@@ -44,3 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /sessions/
+
+ # Ignore any .env file anywhere
+**/.env
+.env
+.env.*
+!.env.example

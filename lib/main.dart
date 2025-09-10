@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/screens/connection.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-const String serverURL = "http://10.0.2.2:3000"; // localhost (for testing)
+late String serverURL;
 const String defaultSessionName = "default";
 
-void main() {
+void main() async {
+  // Load .env
+  await dotenv.load(fileName: ".env");
+
+  // set variables from .env
+  serverURL = dotenv.get("SERVER_IP_ADDRESS");
+
+  // Run app
   runApp(const MyApp());
 }
 
