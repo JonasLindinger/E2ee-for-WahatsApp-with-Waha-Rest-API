@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:ui';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -33,11 +35,42 @@ class _ChatScreenState extends State<ChatScreen> {
     sessionName = widget.sessionName;
 
     getMessages();
+
+    myFocusNode.addListener(() {
+      if (myFocusNode.hasFocus) {
+        // cause a delay so that the keyboard has time to show up
+        Future.delayed(const Duration(milliseconds: 500), () => {
+        ScrollDown(),
+        });
+      }
+    });
+
+    Future.delayed(
+      const Duration(milliseconds: 500),
+        () => ScrollDown(),
+    );
+  }
+
+  @override
+  void dispose() {
+    myFocusNode.dispose();
+    messageController.dispose();
+    super.dispose();
   }
 
   final TextEditingController messageController = TextEditingController();
+  FocusNode myFocusNode = FocusNode();
+  final ScrollController scrollController = ScrollController();
   List<Message> messanges = [];
-  
+
+  void ScrollDown() {
+    scrollController.animateTo(
+      scrollController.position.minScrollExtent,
+      duration: const Duration(seconds: 1),
+      curve: Curves.fastOutSlowIn,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,38 +122,71 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget BuildMessageList() {
     return ListView.builder(
-        itemCount: messanges.length,
-        itemBuilder: (context, index) =>
-            MessageWidget(
-                message: messanges[index]
-            ),
+      reverse: true,
+      itemCount: messanges.length,
+      itemBuilder: (context, index) =>
+        MessageWidget(
+          message: messanges[index]
+        ),
+      controller: scrollController,
     );
   }
 
   Widget BuildUserInput() {
-    return Row(
-      children: [
-        // TextField
-        Expanded(
-          child: TextField(
-            controller: messageController,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: "Nachricht schreiben...",
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 50),
+      child: Row(
+        children: [
+          // TextField
+          // TextField
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(left: 10),
+              decoration: BoxDecoration(
+                color: CupertinoColors.black,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: TextField(
+                controller: messageController,
+                focusNode: myFocusNode,
+                decoration: InputDecoration(
+                  hintText: "Nachricht schreiben...",
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(color: Colors.grey.shade600),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: const BorderSide(color: Colors.green, width: 2),
+                  ),
+                ),
+                obscureText: false,
+              ),
             ),
-            obscureText: false,
-          )
-        ),
-        
-        // Send button
-        IconButton(
-            onPressed: () => {
-              sendMessage(messageController.text),
-              messageController.clear(),
-            }, 
-            icon: Icon(Icons.arrow_upward)
-        ),
-      ],
+          ),
+
+          // Send button
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+            margin: const EdgeInsets.only(right: 10, left: 10),
+            child: IconButton(
+              onPressed: () => {
+                sendMessage(messageController.text),
+                messageController.clear(),
+              },
+              icon: Icon(Icons.send_rounded, color: Colors.white)
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -145,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
-
+      ScrollDown();
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
       print(st);
