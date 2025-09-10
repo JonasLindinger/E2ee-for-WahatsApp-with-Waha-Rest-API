@@ -18,21 +18,37 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   List<Chat> chats = [];
 
+  final ScrollController scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
-    HandleIncomingMessages();
+    HandleIncomingMessages(defaultSessionName);
 
-
+    scrollController.addListener(() {
+      if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
+        // Load new messages
+        getChats(defaultSessionName, false);
+      }
+    });
   }
 
-  void HandleIncomingMessages() {
-    GetChats(defaultSessionName);
+  void HandleIncomingMessages(String sessionName) async {
+    Update(true, sessionName);
   }
 
-  Future<void> GetChats(String sessionName) async {
-    final url = serverURL + "/api/" + sessionName + "/chats/overview";
-    final uri = Uri.parse(url);
+  bool _isFetchingChats = false;
+
+  Future<void> getChats(String sessionName, bool isUpdate) async {
+    if (_isFetchingChats) return;
+    _isFetchingChats = true;
+
+    final url = '$serverURL/api/$sessionName/chats/overview';
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "offset": (isUpdate ? 0 : chats.length).toString(),
+      }
+    );
 
     try {
       final response = await http.get(
@@ -40,37 +56,65 @@ class _MainScreenState extends State<MainScreen> {
         headers: {"Content-Type": "application/json"},
       );
 
-      final body = response.body;
-      final json = jsonDecode(body);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
 
-      List<Chat> newChats = [];
-      bool isFirst = true; // For testing
-      for (final chat in json) {
-        Chat newChat = new Chat();
-        newChat.id = chat["id"];
-        newChat.name = chat["name"];
-        if (chat["picture"] != null)
-          newChat.picture = chat["picture"]; // picture is a url
-        if (chat["lastMessage"] != null)
-          newChat.lastMessage = chat["lastMessage"];
+        final List<Chat> fetched = data.map<Chat>((chat) {
+          final c = Chat();
+          c.id = chat["id"];
+          c.name = chat["name"];
+          if (chat["picture"] != null) c.picture = chat["picture"]; // url
+          if (chat["lastMessage"] != null) c.lastMessage = chat["lastMessage"];
+          return c;
+        }).toList();
 
-        if (isFirst)
-          print(chat["lastMessage"]);
+        // Merge into existing list by id
+        final Map<String, int> indexById = {
+          for (int i = 0; i < chats.length; i++)
+            ((chats[i].id ?? '').toString()): i
+        };
 
-        newChats.add(newChat);
-        isFirst = false;
+        bool changed = false;
+
+        for (final c in fetched) {
+          final id = (c.id ?? '').toString();
+          if (id.isEmpty) continue;
+
+          final existingIndex = indexById[id];
+          if (existingIndex != null) {
+            // Update the existing chat
+            final existing = chats[existingIndex];
+            existing.name = c.name;
+            existing.picture = c.picture;
+            existing.lastMessage = c.lastMessage;
+            changed = true;
+          } else {
+            chats.add(c);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          // Keep global list newest -> oldest
+          setState(() {});
+        }
+      } else {
+        debugPrint("getChats failed: ${response.statusCode} ${response.body}");
       }
-
-      setState(() {
-        chats = newChats;
-      });
     } catch (e, st) {
-      print("Something went wrong trying to get the status of a session: $e");
+      print("Something went wrong trying to get the chats overview: $e");
       print(st);
+    } finally {
+      _isFetchingChats = false;
     }
+  }
 
-    await Future.delayed(const Duration(seconds: 3));
-    GetChats(sessionName);
+  Future<void> Update(bool loop, String sessionName) async {
+    if (loop && chats.length != 0) await Future.delayed(const Duration(seconds: 3));
+
+    await getChats(sessionName, true);
+
+    if (loop) Update(loop, sessionName);
   }
 
   @override
@@ -92,6 +136,7 @@ class _MainScreenState extends State<MainScreen> {
       body: Container(
         margin: EdgeInsets.only(top: 20),
         child: ListView.builder(
+          controller: scrollController,
           itemCount: chats.length,
           itemBuilder: (context, index) => ChatWidget(
             chat: chats[index],
