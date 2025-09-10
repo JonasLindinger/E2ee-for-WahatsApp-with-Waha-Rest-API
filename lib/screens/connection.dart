@@ -47,7 +47,12 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   void HandleSession() async {
     String sessionName = defaultSessionName;
-    await CheckSessionAndCreateASessionIfNecessary(sessionName);
+    if (await IsValidSession(sessionName)) {
+      // Everything is fine, we join the session
+    }
+    else {
+      await CheckSessionAndCreateASessionIfNecessary(sessionName);
+    }
 
     if (!await IsValidSession(sessionName)) {
       // Reactivate the session (we should still be logged in!)
