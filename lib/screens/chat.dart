@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "7PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "7EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "7CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "~CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -399,7 +399,7 @@ class _ChatScreenState extends State<ChatScreen> {
         body: jsonEncode({
           "chatId": chat.id,
           "reply_to": null, // Todo
-          "text": text, // Todo: encrypt
+          "text": text,
           "linkPreview": false, // Todo
           "linkPreviewHighQuality": false, // Todo
           "session": sessionName
@@ -519,6 +519,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Save keys
                 prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+
+                m.message = "";
               }
               else if (m.message.contains(personalPublicKeyPrefix)) {
                 // The other person wants to encrypt the chat
@@ -554,6 +556,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Actually send it.
                 sendMessage(message, true);
+
+                m.message = "";
               }
             }
           }
