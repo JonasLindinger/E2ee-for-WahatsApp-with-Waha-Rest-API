@@ -45,7 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Obtain shared preferences.
   SharedPreferences? prefs;
-  static const String chatPrefPrefix = "Chat-";
+  static const String chatPrefPrefix = "~Chat-";
 
   static const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
   static const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
