@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "4EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "4CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "5PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "5EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "5CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -233,10 +233,10 @@ class _ChatScreenState extends State<ChatScreen> {
       await prefs?.reload();
     }
 
-    var list = prefs?.getString(chatPrefPrefix + chat.id);
-    bool chatIsEncrypted = list != null;
+    String? keys = prefs?.getString(chatPrefPrefix + chat.id);
+    bool chatIsEncrypted = keys != null;
     if (chatIsEncrypted) {
-      chatIsEncrypted = list.isNotEmpty;
+      chatIsEncrypted = keys.isNotEmpty;
     }
 
     // We don't need to send the key. The chat is already encrypted.
@@ -465,8 +465,11 @@ class _ChatScreenState extends State<ChatScreen> {
         final Set<String> existingIds = messanges.map((m) => m.id).toSet();
         bool updated = false;
 
-        final List<String>? storedKeys = prefs?.getStringList(chatPrefPrefix + chat.id);
+        final String? storedKeys = prefs?.getString(chatPrefPrefix + chat.id);
         bool hasKeys = storedKeys != null;
+        if (hasKeys) {
+          hasKeys = storedKeys.isNotEmpty;
+        }
 
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
