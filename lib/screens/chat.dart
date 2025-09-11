@@ -29,6 +29,12 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
+const String chatPrefPrefix = "~Chat-";
+
+const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
+const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
+const String chatKeysPrefix = "~CK: ";  // CK -> Chat Keys
+
 class _ChatScreenState extends State<ChatScreen> {
   late Chat chat;
   late String sessionName;
@@ -45,11 +51,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Obtain shared preferences.
   SharedPreferences? prefs;
-  static const String chatPrefPrefix = "~Chat-";
-
-  static const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "~CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -547,9 +548,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Send the keys encrypted with the other persons public key.
                 String message = encodeKeys(keys);
                 message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
-                print(publicPem);
-                print(privatePem);
-                print(message);
                 message = chatKeysPrefix + message; // CK -> Chat Keys
 
                 // Actually send it.
@@ -696,14 +694,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     return jsonEncode(keys); // e.g. ["key1","key2"]
   }
-
-  List<String> decodeKeys(String encoded) {
-    final parsed = jsonDecode(encoded);
-    if (parsed is! List || parsed.length != 2 || parsed.any((e) => e is! String)) {
-      throw const FormatException('Invalid encoded keys payload (expected 2 strings).');
-    }
-    return List<String>.from(parsed);
-  }
-
 }
 
+List<String> decodeKeys(String encoded) {
+  final parsed = jsonDecode(encoded);
+  if (parsed is! List || parsed.length != 2 || parsed.any((e) => e is! String)) {
+    throw const FormatException('Invalid encoded keys payload (expected 2 strings).');
+  }
+  return List<String>.from(parsed);
+}

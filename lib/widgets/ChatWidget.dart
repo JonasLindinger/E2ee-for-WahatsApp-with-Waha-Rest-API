@@ -1,18 +1,43 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pointycastle/asymmetric/api.dart';
 import 'package:secure_messanger_app/screens/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ChatWidget extends StatelessWidget {
+import '../screens/chat.dart';
+import '../utils/RSAUtils.dart';
+
+class ChatListWidget extends StatefulWidget {
   final Chat chat;
   final void Function()? OpenChat;
 
-  const ChatWidget({
+  const ChatListWidget({
     super.key,
     required this.OpenChat,
     required this.chat,
   });
 
-// Dart
+  @override
+  State<ChatListWidget> createState() => _ChatListWidgetState();
+}
+
+class _ChatListWidgetState extends State<ChatListWidget> {
+  String latestMessage = "";
+
+  late Chat chat;
+  late void Function()? OpenChat;
+
+  @override
+  void initState() {
+    super.initState();
+
+    chat = widget.chat;
+    OpenChat = widget.OpenChat;
+
+    LoadAndFormatLatestMessage();
+  }
+
+  // Dart
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -63,7 +88,7 @@ class ChatWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        chat.lastMessage?['body'] ?? '',
+                        latestMessage,
                         textAlign: TextAlign.left,
                         style: const TextStyle(fontSize: 14, color: Colors.grey),
                         softWrap: true,
@@ -79,6 +104,47 @@ class ChatWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> LoadAndFormatLatestMessage() async {
+    String message = chat.lastMessage?["body"] ?? "";
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    var rawKeys = prefs.getString(chatPrefPrefix + chat.id);
+    if (rawKeys == null) {
+      setState(() {
+        latestMessage = message;
+      });
+      return;
+    }
+
+    List<String> keys = decodeKeys(rawKeys!);
+
+    if (message.contains(encryptedMessagePrefix)) {
+      // Found an encrypted message!
+      message = message.replaceFirst(encryptedMessagePrefix, "");
+
+      if (keys.isNotEmpty) {
+        // decode the message
+        RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(keys[1]);
+
+        message = RSAUtils.decryptHybridFromString(message, privateKey);
+      }
+      else {
+        message = "Encrypted Message";
+      }
+    }
+    else if (message.contains(chatKeysPrefix)) {
+      message = "Encryption established.";
+    }
+    else if (message.contains(personalPublicKeyPrefix)) {
+      message = "Trying to establish encryption.";
+    }
+
+    setState(() {
+      latestMessage = message;
+    });
   }
 }
 
