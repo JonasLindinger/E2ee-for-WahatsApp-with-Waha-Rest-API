@@ -40,16 +40,32 @@ Future<String> GetPublicKeyAsString() async {
   dynamic keys = prefs.getStringList(keysPrefName);
 
   if (keys == null) {
-    await CreateKeys();
+    await CreatePersonalKeys();
   }
 
   keys = prefs.getStringList(keysPrefName);
 
   // Share keys
-  return keys[0];
+  return keys[0]; // 0 -> public key
 }
 
-Future<void> CreateKeys() async {
+Future<RSAPrivateKey> GetPrivateKey() async {
+  // Obtain shared preferences.
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  dynamic keys = prefs.getStringList(keysPrefName);
+
+  if (keys == null) {
+    await CreatePersonalKeys();
+  }
+
+  keys = prefs.getStringList(keysPrefName);
+
+  // Share keys
+  return pemToPrivateKey(keys[1]); // 1 -> private key
+}
+
+Future<void> CreatePersonalKeys() async {
   // Obtain shared preferences.
   final SharedPreferences prefs = await SharedPreferences.getInstance();
 

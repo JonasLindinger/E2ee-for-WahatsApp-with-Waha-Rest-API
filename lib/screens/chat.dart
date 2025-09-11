@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   double sendPublicKeyGestureLength = 80;
   bool whatsAppLikeAppBar = false;
+
+  // Obtain shared preferences.
+  SharedPreferences? prefs;
+  static const String chatPrefPrefix = "Chat-";
+  
+  List<String> chatKeys = [];
 
   @override
   void initState() {
@@ -198,16 +205,38 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void ToggleEncryptionButton() {
+  void ToggleEncryptionButton() async {
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
+    }
+    else {
+      await prefs?.reload();
+    }
+
+    if (prefs?.getString(chatPrefPrefix + chat.id) == null) return; //  Chat has no keys
+
     setState(() {
       buttonState = !buttonState;
     });
   }
 
   void SendKey() async {
-    String publicKey = await GetPublicKeyAsString();
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
+    }
+    else {
+      await prefs?.reload();
+    }
 
-    sendMessage(publicKey);
+    bool chatIsEncrypted = prefs?.getString(chatPrefPrefix + chat.id) != null;
+
+    // We don't need to send the key. The chat is already encrypted.
+    if (chatIsEncrypted) return;
+
+    String publicKey = await GetPublicKeyAsString();
+    publicKey = "PPK: " + publicKey; // PPK -> Personal Public Key
+
+    sendMessage(publicKey, true);
   }
 
   double distanceBetween(Offset a, Offset b) => (a - b).distance;
@@ -305,7 +334,7 @@ class _ChatScreenState extends State<ChatScreen> {
             margin: const EdgeInsets.only(right: 10, left: 10),
             child: IconButton(
               onPressed: () => {
-                sendMessage(messageController.text),
+                sendMessage(messageController.text, false),
                 messageController.clear(),
               },
               icon: Icon(Icons.send_rounded, color: Colors.white)
@@ -316,9 +345,36 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(String text, bool dontEncrypt) async {
     if (text == null) return;
     if (text.isEmpty) return;
+
+    if (!dontEncrypt) {
+      prefs = await SharedPreferences.getInstance();
+
+      bool canEncrypt = prefs?.getString(chatPrefPrefix + chat.id) != null;
+
+      if (canEncrypt && buttonState) {
+        if (chatKeys.isEmpty) {
+          var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+          if (savedKeys != null) {
+            chatKeys = decodeKeys(savedKeys);
+          }
+        }
+        
+        // Get pom public key
+        if (chatKeys.length == 2) {
+          // Encrypt message
+          RSAPublicKey publicKey = pemToPublicKey(chatKeys[0]);
+
+          // Encrypt text with public key
+          text = "EM: " + encrypt(text, publicKey); // EM -> Encrypted Message
+        }
+        else {
+          print("Something went wrong. We should encrypt, but have no keys.");
+        }
+      }
+    }
 
     final url = serverURL + "/api/sendText";
     final uri = Uri.parse(url);
@@ -350,6 +406,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> SendGetMessagesAPI(Uri uri) async {
+    prefs ??= await SharedPreferences.getInstance();
+
     if (isPulling) {
       await waitForCondition(
         () => !isPulling,
@@ -394,6 +452,8 @@ class _ChatScreenState extends State<ChatScreen> {
         final Set<String> existingIds = messanges.map((m) => m.id).toSet();
         bool updated = false;
 
+        bool hasKeys = prefs?.getString(chatPrefPrefix + chat.id) == null;
+
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
 
@@ -405,6 +465,80 @@ class _ChatScreenState extends State<ChatScreen> {
           // If the message has no content, it's useless and we don't display it.
           if (!hasContent) continue;
 
+          if (!chat.isGroupChat) { // Only do encryption stuff on private chats. not group chats
+            // Do Encryption stuff
+            if (hasKeys) {
+              if (m.message.contains("EM: ")) {
+                // Found an encrypted message!
+                String message = m.message.replaceFirst("EM: ", "");
+
+                // Check for keys
+                if (chatKeys.isEmpty) {
+                  var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+                  if (savedKeys != null) {
+                    chatKeys = decodeKeys(savedKeys);
+                  }
+                }
+
+                // Check if we can decrypt
+                if (chatKeys == 2) {
+                  // Get Private key
+                  RSAPrivateKey privateKey = pemToPrivateKey(chatKeys[1]);
+
+                  // Decode Message
+                  m.message = decrypt(message, privateKey);
+                }
+              }
+            }
+            else {
+              // Search for public key
+              if (m.fromMe) continue; // Don't search for the own RSA Key!
+
+              if (m.message.contains("CK: ")) {
+                // The other person sent us Chat Keys.
+                String message = m.message.replaceFirst("CK: ", "");
+                message = decrypt(message, await GetPrivateKey());
+
+                // Extract keys
+                List<String> keys = decodeKeys(message);
+
+                // Save keys
+                prefs?.setStringList(chatPrefPrefix + chat.id, keys);
+              }
+              else if (m.message.contains("PPK: -----BEGIN RSA PUBLIC KEY-----")) {
+                // The other person wants to encrypt the chat
+                String otherPersonsPemPublicKey = m.message.replaceFirst("PPK: ", "");
+                RSAPublicKey otherPersonsPublicKey = pemToPublicKey(otherPersonsPemPublicKey);
+
+                // Generate public keys for the chat
+                final keyPair = generateRSAKeyPair();
+                final publicKey = keyPair.publicKey as RSAPublicKey;
+                final privateKey = keyPair.privateKey as RSAPrivateKey;
+
+                // convert to string
+                final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
+                final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+
+                List<String> keys = [
+                  publicPem,
+                  privatePem
+                ];
+
+                // Save the keys locally
+                prefs?.setStringList(chatPrefPrefix + chat.id, keys);
+
+                // Send the keys encrypted with the other persons public key.
+                String message = encodeKeys(keys);
+                message = encrypt(message, otherPersonsPublicKey);
+                message = "CK: " + message; // CK -> Chat Keys
+
+                // Actually send it.
+                sendMessage(message, true);
+              }
+            }
+          }
+
+          // Add to Message list
           if (m.timestamp > newestMessageTimeStamp) {
             newestMessageTimeStamp = m.timestamp;
           }
@@ -528,5 +662,21 @@ class _ChatScreenState extends State<ChatScreen> {
       await Future.delayed(pollInterval);
     }
   }
+
+  String encodeKeys(List<String> keys) {
+    if (keys.length != 2) {
+      throw ArgumentError('keys must contain exactly 2 items.');
+    }
+    return jsonEncode(keys); // e.g. ["key1","key2"]
+  }
+
+  List<String> decodeKeys(String encoded) {
+    final parsed = jsonDecode(encoded);
+    if (parsed is! List || parsed.length != 2 || parsed.any((e) => e is! String)) {
+      throw const FormatException('Invalid encoded keys payload (expected 2 strings).');
+    }
+    return List<String>.from(parsed);
+  }
+
 }
 
