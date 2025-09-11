@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "2PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "2EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "2CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "3PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "3EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "3CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -376,8 +376,12 @@ class _ChatScreenState extends State<ChatScreen> {
           // Encrypt message
           RSAPublicKey publicKey = RSAUtils.publicKeyFromString(chatKeys[0]);
 
+          final encryptedPayload = RSAUtils.encryptHybridToString("Hello, Jonas!", publicKey);
+
+          final messageToSend = encryptedMessagePrefix + encryptedPayload;
+
           // Encrypt text with public key
-          text = encryptedMessagePrefix + RSAUtils.encrypt(text, publicKey); // EM -> Encrypted Message
+          text = messageToSend; // EM -> Encrypted Message
         }
         else {
           print("Something went wrong. We should encrypt, but have no keys.");
@@ -496,7 +500,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
 
                 // Decrypt Message
-                m.message = RSAUtils.decrypt(message, privateKey);
+                m.message = RSAUtils.decryptHybridFromString(message, privateKey);
               }
             }
 
@@ -508,7 +512,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (m.message.contains(chatKeysPrefix)) {
                 // The other person sent us Chat Keys.
                 String message = m.message.replaceFirst(chatKeysPrefix, "");
-                message = RSAUtils.decrypt(message, await RSAUtils().GetPrivateKey());
+                message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
 
                 // Extract keys
                 List<String> keys = decodeKeys(message);
@@ -540,7 +544,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Send the keys encrypted with the other persons public key.
                 String message = encodeKeys(keys);
-                message = RSAUtils.encrypt(message, otherPersonsPublicKey);
+                message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
                 message = chatKeysPrefix + message; // CK -> Chat Keys
 
                 // Actually send it.
