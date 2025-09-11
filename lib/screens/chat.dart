@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:basic_utils/basic_utils.dart';
@@ -34,6 +35,8 @@ const String chatPrefPrefix = "~Chat-";
 const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
 const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
 const String chatKeysPrefix = "~CK: ";  // CK -> Chat Keys
+const String encryptionEstablishedTextReplacement = "Encryption established.";
+const String tryToEstablishEncryptionTextReplacement = "Trying to establish encryption.";
 
 class _ChatScreenState extends State<ChatScreen> {
   late Chat chat;
@@ -67,8 +70,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (myFocusNode.hasFocus) {
         // cause a delay so that the keyboard has time to show up
         Future.delayed(const Duration(milliseconds: 500), () => {
-        if (mounted)
-          ScrollDown(),
+          if (mounted)
+            ScrollDown(),
         });
       }
     });
@@ -83,7 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     Future.delayed(
       const Duration(milliseconds: 500),
-        () => ScrollDown(),
+          () => ScrollDown(),
     );
   }
 
@@ -120,7 +123,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Display all messages
           Expanded(
-              child: BuildMessageList(),
+            child: BuildMessageList(),
           ),
           // User input
           BuildUserInput(),
@@ -262,9 +265,9 @@ class _ChatScreenState extends State<ChatScreen> {
       reverse: true,
       itemCount: messages.length,
       itemBuilder: (context, index) =>
-        MessageWidget(
-          message: messages[index]
-        ),
+          MessageWidget(
+              message: messages[index]
+          ),
       controller: scrollController,
     );
   }
@@ -343,11 +346,11 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             margin: const EdgeInsets.only(right: 10, left: 10),
             child: IconButton(
-              onPressed: () => {
-                sendMessage(messageController.text, false),
-                messageController.clear(),
-              },
-              icon: Icon(Icons.send_rounded, color: Colors.white)
+                onPressed: () => {
+                  sendMessage(messageController.text, false),
+                  messageController.clear(),
+                },
+                icon: Icon(Icons.send_rounded, color: Colors.white)
             ),
           ),
         ],
@@ -371,7 +374,7 @@ class _ChatScreenState extends State<ChatScreen> {
             chatKeys = decodeKeys(savedKeys);
           }
         }
-        
+
         // Get pom public key
         if (chatKeys.length == 2) {
           // Encrypt message
@@ -424,7 +427,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (isPulling) {
       await waitForCondition(
-        () => !isPulling,
+            () => !isPulling,
         pollInterval: const Duration(milliseconds: 50),
         timeout: const Duration(seconds: 10),
       );
@@ -472,6 +475,7 @@ class _ChatScreenState extends State<ChatScreen> {
           hasKeys = storedKeys.isNotEmpty;
         }
 
+        int index = 0;
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
 
@@ -482,6 +486,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
           // If the message has no content, it's useless and we don't display it.
           if (!hasContent) continue;
+
+          // Add to list
+          if (!existingIds.contains(m.id)) {
+            messages.add(m);
+            existingIds.add(m.id);
+            updated = true;
+          }
 
           if (!chat.isGroupChat) { // Only do encryption stuff on private chats. not group chats
             // Do Encryption stuff
@@ -507,10 +518,9 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             }
 
-            // Check if we have an encrypted chat. If we don't search messages for events
-            if (!hasKeys && !m.fromMe) {
-
-              if (m.message.contains(chatKeysPrefix)) {
+            // Only check messages from the other person(s). and we don't have a key for this group.
+            if (!m.fromMe) {
+              if (m.message.contains(chatKeysPrefix) && !hasKeys) {
                 // The other person sent us Chat Keys.
                 String message = m.message.replaceFirst(chatKeysPrefix, "");
                 message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
@@ -522,44 +532,65 @@ class _ChatScreenState extends State<ChatScreen> {
                 prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
               }
               else if (m.message.contains(personalPublicKeyPrefix)) {
-                // The other person wants to encrypt the chat
-                String otherPersonsPemPublicKey = m.message.replaceFirst(personalPublicKeyPrefix, "");
-                RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(otherPersonsPemPublicKey);
+                // The other person wants to encrypt the chat or asks for keys
 
-                // Generate public keys for the chat
-                final keyPair = RSAUtils.generateRSAKeyPair();
-                final publicKey = keyPair.publicKey as RSAPublicKey;
-                final privateKey = keyPair.privateKey as RSAPrivateKey;
+                // Check if we answered or not
+                bool answered = false;
+                // Ensure the whole list is newest -> oldest
+                messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+                answered = messages.indexOf(m) > 0; // We mark the thing as answered, when its not the newest message.
 
-                // convert to string
-                final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
-                final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+                // If we didn't answered, answer.
+                if (!answered) {
+                  // Get the public key from the other person
+                  String otherPersonsPemPublicKey = m.message.replaceFirst(personalPublicKeyPrefix, "");
+                  RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(otherPersonsPemPublicKey);
 
-                List<String> keys = [
-                  publicPem,
-                  privatePem
-                ];
+                  // Try to use existing keys
+                  List<String> keys = chatKeys;
 
-                chatKeys = keys;
+                  // If we have no keys, create keys
+                  if (keys.length != 2) {
+                    // Generate public keys for the chat
+                    final keyPair = RSAUtils.generateRSAKeyPair();
+                    final publicKey = keyPair.publicKey as RSAPublicKey;
+                    final privateKey = keyPair.privateKey as RSAPrivateKey;
 
-                // Save the keys locally
-                prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                    // convert to string
+                    final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
+                    final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
 
-                // Send the keys encrypted with the other persons public key.
-                String message = encodeKeys(keys);
-                message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
-                message = chatKeysPrefix + message; // CK -> Chat Keys
+                    keys = [
+                      publicPem,
+                      privatePem
+                    ];
+                  }
+                  else {
+                    print("found answered request!");
+                  }
 
-                // Actually send it.
-                sendMessage(message, true);
+                  // set the new or unchanged keys
+                  chatKeys = keys;
+
+                  // Save the keys locally
+                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+
+                  // Send the keys encrypted with the other persons public key.
+                  String message = encodeKeys(keys);
+                  message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
+                  message = chatKeysPrefix + message; // CK -> Chat Keys
+
+                  // Actually send it.
+                  sendMessage(message, true);
+                }
               }
             }
 
             if (m.message.contains(chatKeysPrefix)) {
-              m.message = "Encryption established.";
+              m.message = encryptionEstablishedTextReplacement;
             }
             else if (m.message.contains(personalPublicKeyPrefix)) {
-              m.message = "Trying to establish encryption.";
+              m.message = tryToEstablishEncryptionTextReplacement;
             }
           }
 
@@ -574,11 +605,7 @@ class _ChatScreenState extends State<ChatScreen> {
             oldestMessageTimeStamp = m.timestamp;
           }
 
-          if (!existingIds.contains(m.id)) {
-            messages.add(m);
-            existingIds.add(m.id);
-            updated = true;
-          }
+          index++;
         }
 
         if (updated) {
