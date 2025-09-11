@@ -164,10 +164,24 @@ class _MainScreenState extends State<MainScreen> {
   void OpenChat(Chat chat) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ChatScreen(
-        chat: chat,
-        sessionName: defaultSessionName,
-      ))
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => ChatScreen(
+            chat: chat,
+            sessionName: defaultSessionName,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0); // start from bottom
+          const end = Offset.zero;
+          final tween = Tween(begin: begin, end: end);
+          final curvedAnimation = CurvedAnimation(parent: animation, curve: Curves.ease);
+
+          return SlideTransition(
+            position: tween.animate(curvedAnimation),
+            child: child,
+          );
+        },
+        transitionDuration: Duration(milliseconds: 400),
+      ),
     );
   }
 }

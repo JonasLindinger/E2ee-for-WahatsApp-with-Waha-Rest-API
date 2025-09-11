@@ -26,16 +26,19 @@ class ChatWidget extends StatelessWidget {
               Container(
                 width: 50,
                 height: 50,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: chat.picture != "" ?
+                child:  Hero(
+                  tag: chat.id+"-image",
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(100),
+                    child: chat.picture != "" ?
                     Image.network(
                       chat.picture,
                     ) :
                     Container(
                       color: Colors.green,
-                    )
+                    ),
                   ),
+                ),
                 ),
               SizedBox(
                 width: 20,

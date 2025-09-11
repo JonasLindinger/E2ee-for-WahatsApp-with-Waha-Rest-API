@@ -100,15 +100,18 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               width: 40,
               height: 40,
-              child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
+              child: Hero(
+                tag: chat.id+"-image",
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(100),
                   child: chat.picture != "" ?
                   Image.network(
                     chat.picture,
                   ) :
                   Container(
                     color: Colors.green,
-                  )
+                  ),
+                ),
               ),
             ),
             SizedBox(
