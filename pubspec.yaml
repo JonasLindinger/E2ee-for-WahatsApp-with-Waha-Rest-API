@@ -41,7 +41,6 @@ dependencies:
   shelf_router: ^1.1.4
   audioplayers: ^6.5.1
   flutter_dotenv: ^6.0.0
-  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:
