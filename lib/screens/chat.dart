@@ -152,7 +152,20 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.only(bottom: 50),
       child: Row(
         children: [
-          // TextField
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.grey,
+              shape: BoxShape.circle,
+            ),
+            margin: const EdgeInsets.only(left: 10),
+            child: IconButton(
+                onPressed: () => {
+                  sendMessage(messageController.text),
+                  messageController.clear(),
+                },
+                icon: Icon(Icons.account_circle_rounded, color: Colors.white)
+            ),
+          ),
           // TextField
           Expanded(
             child: Container(
