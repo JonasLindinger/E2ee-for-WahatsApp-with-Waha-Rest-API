@@ -200,7 +200,7 @@ class _MainScreenState extends State<MainScreen> {
         child: ListView.builder(
           controller: scrollController,
           itemCount: chats.length,
-          itemBuilder: (context, index) => ChatWidget(
+          itemBuilder: (context, index) => ChatListWidget(
             chat: chats[index],
             OpenChat: () => {
               OpenChat(chats[index])
