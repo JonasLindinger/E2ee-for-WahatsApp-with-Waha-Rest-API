@@ -1,3 +1,4 @@
+/*
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -5,33 +6,12 @@ import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/key_generators/api.dart' as crypto;
 import 'package:pointycastle/key_generators/rsa_key_generator.dart' as crypto;
 import 'package:pointycastle/random/fortuna_random.dart' as crypto;
-import 'package:rsa_encrypt/rsa_encrypt.dart';
 import 'package:pointycastle/api.dart' as crypto;
 import 'package:basic_utils/basic_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'cryptography.dart' as RsaEncrypt;
+import 'package:pointycastle/export.dart';
 
 const keysPrefName = "KEYS";
-
-void main() {
-  // 1. Generate RSA key pair
-  final keyPair = generateRSAKeyPair();
-  final publicKey = keyPair.publicKey as RSAPublicKey;
-  final privateKey = keyPair.privateKey as RSAPrivateKey;
-
-  print("Public Key: ${CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey)}");
-  print("Private Key: ${CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey)}");
-
-  // 2. Encrypt a string using the public key
-  String message = "Hello Flutter!";
-  String encrypted = encrypt(message, publicKey);
-  print("Encrypted: $encrypted");
-
-  // 3. Decrypt using the private key
-  String decrypted = decrypt(encrypted, privateKey);
-  print("Decrypted: $decrypted");
-}
 
 Future<String> GetPublicKeyAsString() async {
   // Obtain shared preferences.
@@ -80,20 +60,6 @@ Future<void> CreatePersonalKeys() async {
   await prefs.setStringList(keysPrefName, [publicPem, privatePem]);
 }
 
-String publicKeyToPem(RSAPublicKey publicKey) {
-  // Option A: PKCS#1
-  return CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
-  // Option B (also common): SubjectPublicKeyInfo (SPKI)
-  // return CryptoUtils.encodeRSAPublicKeyToPemSpki(publicKey);
-}
-
-String privateKeyToPem(RSAPrivateKey privateKey) {
-  // Option A: PKCS#1
-  return CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
-  // Option B: PKCS#8
-  // return CryptoUtils.encodeRSAPrivateKeyToPemPkcs8(privateKey);
-}
-
 RSAPublicKey pemToPublicKey(String pem) {
   // Auto-detects PKCS#1/SPKI in most cases
   return CryptoUtils.rsaPublicKeyFromPem(pem);
@@ -130,16 +96,66 @@ crypto.AsymmetricKeyPair<crypto.PublicKey, crypto.PrivateKey> generateRSAKeyPair
   return keyGen.generateKeyPair();
 }
 
-// Encrypt string with public key
-String encrypt(String plaintext, RSAPublicKey publicKey) {
-  var RsaEncrypt;
-  final encrypted = RsaEncrypt.encryptString(plaintext, publicKey);
-  return base64Encode(encrypted);
+// Generate a random AES key (256-bit)
+Uint8List generateAesKey() {
+  final rnd = Random.secure();
+  return Uint8List.fromList(List.generate(32, (_) => rnd.nextInt(256)));
 }
 
-// Decrypt string with private key
-String decrypt(String encryptedBase64, RSAPrivateKey privateKey) {
-  final encryptedBytes = base64Decode(encryptedBase64);
-  return RsaEncrypt.decrypt(encryptedBytes as String, privateKey);
+// AES encryption
+Uint8List aesEncrypt(Uint8List key, String plaintext) {
+  final iv = Uint8List(16); // you should use a random IV per message in production!
+  final params = ParametersWithIV(KeyParameter(key), iv);
+  final cipher = CBCBlockCipher(AESEngine())..init(true, params);
+
+  // PKCS7 padding
+  final padder = PKCS7Padding();
+  var input = Uint8List.fromList(utf8.encode(plaintext));
+  int padLen = 16 - (input.length % 16);
+  input = Uint8List.fromList(input + List.filled(padLen, padLen));
+
+  final output = Uint8List(input.length);
+  for (var offset = 0; offset < input.length; offset += 16) {
+    cipher.processBlock(input, offset, output, offset);
+  }
+  return output;
 }
 
+// AES decryption
+String aesDecrypt(Uint8List key, Uint8List ciphertext) {
+  final iv = Uint8List(16);
+  final params = ParametersWithIV(KeyParameter(key), iv);
+  final cipher = CBCBlockCipher(AESEngine())..init(false, params);
+
+  final output = Uint8List(ciphertext.length);
+  for (var offset = 0; offset < ciphertext.length; offset += 16) {
+    cipher.processBlock(ciphertext, offset, output, offset);
+  }
+
+  // Remove PKCS7 padding
+  final padLen = output.last;
+  final unpadded = output.sublist(0, output.length - padLen);
+  return utf8.decode(unpadded);
+}
+
+// Hybrid encrypt: returns a map with both encrypted AES key and ciphertext
+Map<String, String> hybridEncrypt(String plaintext, RSAPublicKey publicKey) {
+  final aesKey = generateAesKey();
+  final encryptedMessage = aesEncrypt(aesKey, plaintext);
+  final encryptedKey = rsa.encrypt(base64Encode(aesKey), publicKey);
+
+  return {
+    "encryptedKey": encryptedKey,
+    "encryptedMessage": base64Encode(encryptedMessage),
+  };
+}
+
+// Hybrid decrypt: takes encrypted key + encrypted message
+String hybridDecrypt(String encryptedKey, String encryptedMessage, RSAPrivateKey privateKey) {
+  final aesKeyBase64 = rsa.decrypt(encryptedKey, privateKey);
+  final aesKey = base64Decode(aesKeyBase64);
+  final messageBytes = base64Decode(encryptedMessage);
+
+  return aesDecrypt(aesKey, messageBytes);
+}
+*/
