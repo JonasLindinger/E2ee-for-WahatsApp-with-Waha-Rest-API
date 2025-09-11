@@ -8,6 +8,8 @@ import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/screens/chat.dart';
 import 'package:secure_messanger_app/widgets/ChatWidget.dart';
 
+import '../widgets/center_circle.dart';
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -187,27 +189,37 @@ class _MainScreenState extends State<MainScreen> {
         foregroundColor: Colors.white,
         backgroundColor: Colors.black,
         title: const Text(
-            "Chats",
+          "Chats",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 28
+            fontSize: 28,
           ),
         ),
       ),
-      body: Container(
-        margin: EdgeInsets.only(top: 20),
-        child: ListView.builder(
-          controller: scrollController,
-          itemCount: chats.length,
-          itemBuilder: (context, index) => ChatWidget(
-            chat: chats[index],
-            OpenChat: () => {
-              OpenChat(chats[index])
-            }
-          )
-        ),
-      )
+      body: Stack( // Das Stack-Widget ist der Schlüssel zur Überlagerung von Widgets
+        children: [
+          // Dein ListView.builder, der den Hauptinhalt darstellt
+          Container(
+            margin: const EdgeInsets.only(top: 20),
+            child: ListView.builder(
+              controller: scrollController,
+              itemCount: chats.length,
+              itemBuilder: (context, index) => ChatListWidget(
+                chat: chats[index],
+                OpenChat: () => OpenChat(chats[index]),
+              ),
+            ),
+          ),
+          // Dein CenterCircle-Widget, das oben drauf positioniert wird
+          CenterCircle(
+            color: Colors.green,
+            icon: Icons.add,
+            height: 60,
+            width: 60,
+          ),
+        ],
+      ),
     );
   }
 
