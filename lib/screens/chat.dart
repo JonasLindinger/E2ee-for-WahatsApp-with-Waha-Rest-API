@@ -9,7 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/cryptography.dart';
 import '../widgets/ChatWidget.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -202,8 +204,10 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void SendKey() {
-    print("Send");
+  void SendKey() async {
+    String publicKey = await GetPublicKeyAsString();
+
+    sendMessage(publicKey);
   }
 
   double distanceBetween(Offset a, Offset b) => (a - b).distance;
