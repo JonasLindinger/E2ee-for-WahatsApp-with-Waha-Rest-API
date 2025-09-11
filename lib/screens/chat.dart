@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "5PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "5EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "5CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "6PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "6EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "6CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -217,8 +217,8 @@ class _ChatScreenState extends State<ChatScreen> {
       await prefs?.reload();
     }
 
-    var list = prefs?.getString(chatPrefPrefix + chat.id);
-    if (list == null || list.isEmpty) return; //  Chat has no keys
+    String? keys = prefs?.getString(chatPrefPrefix + chat.id);
+    if (keys == null || keys.isEmpty) return; //  Chat has no keys
 
     setState(() {
       buttonState = !buttonState;
@@ -520,7 +520,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 List<String> keys = decodeKeys(message);
 
                 // Save keys
-                prefs?.setStringList(chatPrefPrefix + chat.id, keys);
+                prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
               }
               else if (m.message.contains(personalPublicKeyPrefix)) {
                 // The other person wants to encrypt the chat
@@ -542,7 +542,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ];
 
                 // Save the keys locally
-                prefs?.setStringList(chatPrefPrefix + chat.id, keys);
+                prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
 
                 // Send the keys encrypted with the other persons public key.
                 String message = encodeKeys(keys);
