@@ -47,29 +47,21 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
 
   void HandleSession() async {
     String sessionName = defaultSessionName;
-    if (await IsValidSession(sessionName)) {
-      // Everything is fine, we join the session
-    }
-    else {
-      await CheckSessionAndCreateASessionIfNecessary(sessionName);
-    }
 
-    if (!await IsValidSession(sessionName)) {
-      // Reactivate the session (we should still be logged in!)
-      await StartSession(sessionName);
+    print("TryCreateSession");
+    await TryCreateSession(sessionName);
+    /*
+    print("WaitForStatus " + "STOPPED");
+    await WaitForStatus(sessionName, "STOPPED");
+    print("StartSession");
+    await StartSession(sessionName);
+    */
+    String status = await SessionStarted(sessionName);
 
-      if (await CheckSessionAndIfThereIsANeedToLogin(sessionName)) {
-        // We need to login!
-        await GetQRCode(sessionName);
-      }
-    }
-
-    if (await IsValidSession(sessionName)) {
-      // Everything is working!
-    }
-    else {
-      // Session isn't working...
-      print("Error while logging in");
+    if (status == "SCAN_QR_CODE") {
+      // Get QR-Code and display
+      print("GetQRCode");
+      await GetQRCode(sessionName);
     }
 
     // Load the messanger!
@@ -79,29 +71,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     );
   }
 
-  Future<void> CheckSessionAndCreateASessionIfNecessary(String sessionName) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    const SessionNamePreference = "SESSIONNAME";
-    final session = prefs.getString(SessionNamePreference);
-
-    if (session == null) {
-      // Create Session
-      await CreateSession(sessionName);
-      await GetQRCode(sessionName);
-
-      // Save the session name
-      prefs.setString(SessionNamePreference, sessionName);
-    }
-    else {
-      // Join Session
-      print("Session should still be working!");
-    }
-  }
-
-  Future<void> CreateSession(String sessionName) async {
+  Future<void> TryCreateSession(String sessionName) async {
     final url = serverURL + "/api/sessions/";
     final uri = Uri.parse(url);
-    print("Creating session...");
 
     try {
       final response = await http.post(
@@ -113,12 +85,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         }),
       );
 
-      final body = response.body;
-      final json = jsonDecode(body);
+      await StartSession(sessionName);
 
-      await waitForStatus(sessionName, "SCAN_QR_CODE");
-
-      print("Created Session!");
+      return;
     } catch (e, st) {
       print("Something went wrong trying to create a session: $e");
       print(st);
@@ -128,7 +97,6 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   Future<void> StartSession(String sessionName) async {
     final url = serverURL + "/api/sessions/" + sessionName + "/start";
     final uri = Uri.parse(url);
-    print("Starting session...");
 
     try {
       final response = await http.post(
@@ -142,9 +110,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
-      print("Created Session!");
+      return;
     } catch (e, st) {
-      print("Something went wrong trying to create a session: $e");
+      print("Something went wrong trying to start a session: $e");
       print(st);
     }
   }
@@ -174,7 +142,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             qrCodeBytes = bytes as Uint8List?;
           });
 
-          await waitForStatus(sessionName, "WORKING");
+          await WaitForStatus(sessionName, "WORKING");
         }
       } else {
         print("Error: ${response.statusCode}");
@@ -184,7 +152,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     }
   }
 
-  Future<void> waitForStatus(String sessionName, String status) async {
+  Future<void> WaitForStatus(String sessionName, String status) async {
     await Future.delayed(const Duration(seconds: 3));
 
     final url = serverURL + "/api/sessions/" + sessionName;
@@ -208,12 +176,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       print(st);
     }
 
-    await waitForStatus(sessionName, status);
+    await WaitForStatus(sessionName, status);
   }
 
-  Future<bool> CheckSessionAndIfThereIsANeedToLogin(String sessionName) async {
-    await Future.delayed(const Duration(seconds: 3));
-
+  Future<String> SessionStarted(String sessionName) async {
     final url = serverURL + "/api/sessions/" + sessionName;
     final uri = Uri.parse(url);
 
@@ -226,43 +192,18 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
-      if (json["status"] == "WORKING") {
-        // We logged in!
-        return false;
-      }
-      else if (json["status"] == "SCAN_QR_CODE"){
-        // We have to login!
-        return true;
-      }
-    } catch (e, st) {
-      print("Something went wrong trying to get the status of a session: $e");
-      print(st);
-    }
-
-    return await CheckSessionAndIfThereIsANeedToLogin(sessionName);
-  }
-
-  Future<bool> IsValidSession(String sessionName) async {
-    final url = serverURL + "/api/sessions/" + sessionName;
-    final uri = Uri.parse(url);
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {"Content-Type": "application/json"},
-      );
-
-      final body = response.body;
-      final json = jsonDecode(body);
-
-      if (json["status"] == "WORKING") {
-        // We logged in!
-        return true;
+      String status = json["status"];
+      switch (status) {
+        case "WORKING":
+          return status;
+        case "SCAN_QR_CODE":
+          return status;
       }
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
       print(st);
     }
-    return false;
+
+    return SessionStarted(sessionName);
   }
 }
