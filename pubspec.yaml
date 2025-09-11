@@ -40,6 +40,9 @@ dependencies:
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   audioplayers: ^6.5.1
+  rsa_encrypt: ^2.0.0
+  pointycastle: ^3.0.1
+  basic_utils: ^5.7.0
   flutter_dotenv: ^6.0.0
 
 dev_dependencies:
