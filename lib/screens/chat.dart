@@ -138,6 +138,12 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void ToggleEncryptionButton() {
+    setState(() {
+      buttonState = !buttonState;
+    });
+  }
+
   Widget BuildMessageList() {
     return ListView.builder(
       reverse: true,
@@ -155,19 +161,16 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.only(bottom: 50),
       child: Row(
         children: [
-          Container(
+          AnimatedContainer(
+            duration: Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
             decoration: BoxDecoration(
               color: buttonState ? Colors.blue : Colors.grey,
               shape: BoxShape.circle,
             ),
             margin: const EdgeInsets.only(left: 10),
             child: IconButton(
-                onPressed: () => {
-                  buttonState = !buttonState,
-                  setState(() {
-
-                  }),
-                },
+                onPressed: ToggleEncryptionButton,
                 icon: Icon(Icons.account_circle_rounded, color: Colors.white)
             ),
           ),
