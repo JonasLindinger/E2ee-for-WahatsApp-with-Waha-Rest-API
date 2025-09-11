@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/widgets/ChatImage.dart';
 import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
 import 'dart:ui' as ui;
@@ -49,7 +50,7 @@ class _MessageWidgetState extends State<MessageWidget> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: isCurrentUser ? Colors.green : Colors.black,
+            color: isCurrentUser ? OwnMessage : OtherMessage,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(12),
               topRight: const Radius.circular(12),
