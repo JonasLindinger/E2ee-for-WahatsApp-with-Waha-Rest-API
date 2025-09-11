@@ -1,65 +1,54 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
+import 'package:basic_utils/basic_utils.dart'; // <-- needed for PEM encode/decode
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RSAUtils {
   static const keysPrefName = "KEYS";
 
   Future<String> GetPublicKeyAsString() async {
-    // Obtain shared preferences.
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    dynamic keys = prefs.getStringList(keysPrefName);
-
+    List<String>? keys = prefs.getStringList(keysPrefName);
     if (keys == null) {
       await CreatePersonalKeys();
+      keys = prefs.getStringList(keysPrefName);
     }
 
-    keys = prefs.getStringList(keysPrefName);
-
-    // Share keys
-    return keys[0]; // 0 -> public key
+    return keys![0]; // PEM public key
   }
 
   Future<RSAPrivateKey> GetPrivateKey() async {
-    // Obtain shared preferences.
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    dynamic keys = prefs.getStringList(keysPrefName);
-
+    List<String>? keys = prefs.getStringList(keysPrefName);
     if (keys == null) {
       await CreatePersonalKeys();
+      keys = prefs.getStringList(keysPrefName);
     }
 
-    keys = prefs.getStringList(keysPrefName);
-
-    // Share keys
-    return privateKeyFromString(keys[1]); // 1 -> private key
+    return privateKeyFromString(keys![1]); // PEM private key
   }
 
   Future<void> CreatePersonalKeys() async {
-    // Obtain shared preferences.
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // Create keys
     final keyPair = generateRSAKeyPair();
-    final publicKey = keyPair.publicKey;
-    final privateKey = keyPair.privateKey;
+    final publicKey = keyPair.publicKey as RSAPublicKey;
+    final privateKey = keyPair.privateKey as RSAPrivateKey;
 
-    final publicKeyStr = publicKeyToString(publicKey);
-    final privateKeyStr = privateKeyToString(privateKey);
+    // Convert to PEM
+    final publicKeyPem = publicKeyToString(publicKey);
+    final privateKeyPem = privateKeyToString(privateKey);
 
-    await prefs.setStringList(keysPrefName, [publicKeyStr, privateKeyStr]);
+    await prefs.setStringList(keysPrefName, [publicKeyPem, privateKeyPem]);
   }
 
   /// Generate a new RSA key pair
   static AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> generateRSAKeyPair(
       {int bitLength = 2048}) {
     final secureRandom = FortunaRandom();
-    final random = SecureRandom("Fortuna")
-      ..seed(KeyParameter(_seed()));
-
     secureRandom.seed(KeyParameter(_seed()));
 
     final rsaParams = RSAKeyGeneratorParameters(BigInt.parse('65537'), bitLength, 12);
@@ -69,45 +58,31 @@ class RSAUtils {
     return generator.generateKeyPair();
   }
 
-  /// Helper to create random seed
   static Uint8List _seed() {
-    final random = SecureRandom("Fortuna");
     final seed = List<int>.generate(32, (_) => DateTime.now().microsecondsSinceEpoch % 256);
     return Uint8List.fromList(seed);
   }
 
-  /// Convert Public Key to Base64 String
+  /// ---- PEM ONLY ----
+
+  /// Convert Public Key to PEM string
   static String publicKeyToString(RSAPublicKey publicKey) {
-    final modulus = base64Encode(_encodeBigInt(publicKey.modulus!));
-    final exponent = base64Encode(_encodeBigInt(publicKey.exponent!));
-    return jsonEncode({'modulus': modulus, 'exponent': exponent});
+    return CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
   }
 
-  /// Convert String to Public Key
-  static RSAPublicKey publicKeyFromString(String keyString) {
-    final data = jsonDecode(keyString);
-    final modulus = _decodeBigInt(base64Decode(data['modulus']));
-    final exponent = _decodeBigInt(base64Decode(data['exponent']));
-    return RSAPublicKey(modulus, exponent);
+  /// Convert PEM string to Public Key
+  static RSAPublicKey publicKeyFromString(String pemString) {
+    return CryptoUtils.rsaPublicKeyFromPemPkcs1(pemString);
   }
 
-  /// Convert Private Key to Base64 String
+  /// Convert Private Key to PEM string
   static String privateKeyToString(RSAPrivateKey privateKey) {
-    final modulus = base64Encode(_encodeBigInt(privateKey.modulus!));
-    final exponent = base64Encode(_encodeBigInt(privateKey.exponent!));
-    final p = base64Encode(_encodeBigInt(privateKey.p!));
-    final q = base64Encode(_encodeBigInt(privateKey.q!));
-    return jsonEncode({'modulus': modulus, 'exponent': exponent, 'p': p, 'q': q});
+    return CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
   }
 
-  /// Convert String to Private Key
-  static RSAPrivateKey privateKeyFromString(String keyString) {
-    final data = jsonDecode(keyString);
-    final modulus = _decodeBigInt(base64Decode(data['modulus']));
-    final exponent = _decodeBigInt(base64Decode(data['exponent']));
-    final p = _decodeBigInt(base64Decode(data['p']));
-    final q = _decodeBigInt(base64Decode(data['q']));
-    return RSAPrivateKey(modulus, exponent, p, q);
+  /// Convert PEM string to Private Key
+  static RSAPrivateKey privateKeyFromString(String pemString) {
+    return CryptoUtils.rsaPrivateKeyFromPemPkcs1(pemString);
   }
 
   /// Encrypt with public key
@@ -115,34 +90,14 @@ class RSAUtils {
     final cipher = RSAEngine()
       ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
     final encrypted = cipher.process(Uint8List.fromList(utf8.encode(plaintext)));
-    return base64Encode(encrypted);
+    return base64Encode(encrypted); // <- use Dart's base64Encode
   }
 
   /// Decrypt with private key
   static String decrypt(String ciphertext, RSAPrivateKey privateKey) {
     final cipher = RSAEngine()
       ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
-    final decrypted = cipher.process(base64Decode(ciphertext));
+    final decrypted = cipher.process(base64Decode(ciphertext)); // <- use Dart's base64Decode
     return utf8.decode(decrypted);
-  }
-
-  /// BigInt Encoding / Decoding helpers
-  static Uint8List _encodeBigInt(BigInt number) {
-    final byteMask = BigInt.from(0xff);
-    var temp = number;
-    final result = <int>[];
-    while (temp > BigInt.zero) {
-      result.insert(0, (temp & byteMask).toInt());
-      temp = temp >> 8;
-    }
-    return Uint8List.fromList(result);
-  }
-
-  static BigInt _decodeBigInt(Uint8List bytes) {
-    BigInt result = BigInt.zero;
-    for (final byte in bytes) {
-      result = (result << 8) | BigInt.from(byte);
-    }
-    return result;
   }
 }

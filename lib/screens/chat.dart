@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "1PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "1EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "1CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "2PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "2EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "2CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -217,7 +217,8 @@ class _ChatScreenState extends State<ChatScreen> {
       await prefs?.reload();
     }
 
-    if (prefs?.getString(chatPrefPrefix + chat.id) == null) return; //  Chat has no keys
+    var list = prefs?.getString(chatPrefPrefix + chat.id);
+    if (list == null || list.isEmpty) return; //  Chat has no keys
 
     setState(() {
       buttonState = !buttonState;
@@ -232,7 +233,11 @@ class _ChatScreenState extends State<ChatScreen> {
       await prefs?.reload();
     }
 
-    bool chatIsEncrypted = prefs?.getString(chatPrefPrefix + chat.id) != null;
+    var list = prefs?.getString(chatPrefPrefix + chat.id);
+    bool chatIsEncrypted = list != null;
+    if (chatIsEncrypted) {
+      chatIsEncrypted = list.isNotEmpty;
+    }
 
     // We don't need to send the key. The chat is already encrypted.
     if (chatIsEncrypted) return;
