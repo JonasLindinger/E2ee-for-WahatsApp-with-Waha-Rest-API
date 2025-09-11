@@ -519,8 +519,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Save keys
                 prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
-
-                m.message = "";
               }
               else if (m.message.contains(personalPublicKeyPrefix)) {
                 // The other person wants to encrypt the chat
@@ -556,9 +554,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Actually send it.
                 sendMessage(message, true);
-
-                m.message = "";
               }
+            }
+
+            if (m.message.contains(chatKeysPrefix)) {
+              m.message = "Encryption established.";
+            }
+            else if (m.message.contains(personalPublicKeyPrefix)) {
+              m.message = "Trying to establish encryption.";
             }
           }
 
