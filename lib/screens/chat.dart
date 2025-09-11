@@ -47,9 +47,9 @@ class _ChatScreenState extends State<ChatScreen> {
   SharedPreferences? prefs;
   static const String chatPrefPrefix = "Chat-";
 
-  static const String personalPublicKeyPrefix = "3PPK: ";  // PPK -> Personal Public Key
-  static const String encryptedMessagePrefix = "3EM: ";  // EM -> Encrypted Message
-  static const String chatKeysPrefix = "3CK: ";  // CK -> Chat Keys
+  static const String personalPublicKeyPrefix = "PPK: ";  // PPK -> Personal Public Key
+  static const String encryptedMessagePrefix = "4EM: ";  // EM -> Encrypted Message
+  static const String chatKeysPrefix = "4CK: ";  // CK -> Chat Keys
 
   List<String> chatKeys = [];
 
@@ -465,9 +465,8 @@ class _ChatScreenState extends State<ChatScreen> {
         final Set<String> existingIds = messanges.map((m) => m.id).toSet();
         bool updated = false;
 
-        final String prefKey = chatPrefPrefix + chat.id;
-        final List<String>? storedKeys = prefs?.getStringList(prefKey);
-        bool hasKeys = storedKeys == null;
+        final List<String>? storedKeys = prefs?.getStringList(chatPrefPrefix + chat.id);
+        bool hasKeys = storedKeys != null;
 
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
@@ -545,6 +544,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Send the keys encrypted with the other persons public key.
                 String message = encodeKeys(keys);
                 message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
+                print(publicPem);
+                print(privatePem);
+                print(message);
                 message = chatKeysPrefix + message; // CK -> Chat Keys
 
                 // Actually send it.
