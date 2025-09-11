@@ -33,6 +33,9 @@ class _ChatScreenState extends State<ChatScreen> {
   int oldestMessageTimeStamp = 0;
   bool isPulling = false;
 
+  // Encryption Button
+  bool buttonState = false; // true -> encrypt. false -> normal messaging
+
   @override
   void initState() {
     super.initState();
@@ -153,15 +156,17 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Row(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              color: Colors.grey,
+            decoration: BoxDecoration(
+              color: buttonState ? Colors.blue : Colors.grey,
               shape: BoxShape.circle,
             ),
             margin: const EdgeInsets.only(left: 10),
             child: IconButton(
                 onPressed: () => {
-                  sendMessage(messageController.text),
-                  messageController.clear(),
+                  buttonState = !buttonState,
+                  setState(() {
+
+                  }),
                 },
                 icon: Icon(Icons.account_circle_rounded, color: Colors.white)
             ),
