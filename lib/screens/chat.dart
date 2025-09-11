@@ -37,6 +37,9 @@ class _ChatScreenState extends State<ChatScreen> {
   // Encryption Button
   bool buttonState = false; // true -> encrypt. false -> normal messaging
 
+  double sendPublicKeyGestureLength = 80;
+  bool whatsAppLikeAppBar = false;
+
   @override
   void initState() {
     super.initState();
@@ -97,38 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: AppbarBackground,
         foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              child: Hero(
-                tag: chat.id+"-image",
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: chat.picture != "" ?
-                  Image.network(
-                    chat.picture,
-                  ) :
-                  Container(
-                    color: Colors.green,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 20,
-            ),
-            Text(
-              chat.name,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18
-              ),
-            ),
-          ],
-        )
+        title: whatsAppLikeAppBar ? WhatsAppLikeAppBar() : NotWhatsAppLikeAppBar(),
       ),
       body: Column(
         children: [
@@ -143,10 +115,103 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget WhatsAppLikeAppBar() {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          child: Hero(
+            tag: chat.id+"-image",
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: chat.picture != "" ?
+              Image.network(
+                chat.picture,
+              ) :
+              Container(
+                color: Colors.green,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 20,
+        ),
+        Text(
+          chat.name,
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget NotWhatsAppLikeAppBar() {
+    return Row(
+      children: [
+        // 1. Ein Expanded-Widget, das den Platz links vom Namen füllt
+        const Expanded(
+          child: SizedBox(),
+        ),
+
+        // 2. Der Name, der nun durch die Expanded-Widgets zentriert wird
+        Text(
+          chat.name,
+          style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 24
+          ),
+        ),
+
+        // 3. Ein Expanded-Widget, das den gesamten verbleibenden Platz füllt
+        //    und das Profilbild nach ganz rechts schiebt.
+        const Expanded(
+          child: SizedBox(),
+        ),
+
+        // 4. Das Profilbild, das nun ganz rechts steht
+        Container(
+          width: 40,
+          height: 40,
+          child: Hero(
+            tag: chat.id + "-image",
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: chat.picture != ""
+                  ? Image.network(
+                chat.picture,
+              )
+                  : Container(
+                color: Colors.green,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   void ToggleEncryptionButton() {
     setState(() {
       buttonState = !buttonState;
     });
+  }
+
+  void SendKey() {
+    print("Send");
+  }
+
+  double distanceBetween(Offset a, Offset b) => (a - b).distance;
+  bool DragedLongEnoughToSendKey(DragEndDetails details) {
+    Offset endDragPosition = details.localPosition;
+    var distance = distanceBetween(startingDragPosition, endDragPosition);
+
+    return distance >= sendPublicKeyGestureLength;
   }
 
   Widget BuildMessageList() {
@@ -161,23 +226,35 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Offset startingDragPosition = Offset(0, 0);
+
   Widget BuildUserInput() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 50),
       child: Row(
         children: [
           if (!chat.isGroupChat) // Only allow encryption for private chats. Group chats aren't supported (yet).
-            AnimatedContainer(
-              duration: Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              decoration: BoxDecoration(
-                color: buttonState ? Colors.blue : Colors.grey,
-                shape: BoxShape.circle,
-              ),
-              margin: const EdgeInsets.only(left: 10),
-              child: IconButton(
-                  onPressed: ToggleEncryptionButton,
-                  icon: Icon(Icons.account_circle_rounded, color: Colors.white)
+            GestureDetector(
+              onVerticalDragEnd: (details) => {
+                if (DragedLongEnoughToSendKey(details)) {
+                  SendKey(),
+                },
+              },
+              onVerticalDragStart: (details) => {
+                startingDragPosition = details.localPosition,
+              },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                decoration: BoxDecoration(
+                  color: buttonState ? Colors.blue : Colors.grey,
+                  shape: BoxShape.circle,
+                ),
+                margin: const EdgeInsets.only(left: 10),
+                child: IconButton(
+                    onPressed: ToggleEncryptionButton,
+                    icon: Icon(Icons.account_circle_rounded, color: Colors.white)
+                ),
               ),
             ),
           // TextField
