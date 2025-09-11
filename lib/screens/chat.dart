@@ -547,9 +547,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Send the keys encrypted with the other persons public key.
                 String message = encodeKeys(keys);
                 message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
-                print(publicPem);
-                print(privatePem);
-                print(message);
                 message = chatKeysPrefix + message; // CK -> Chat Keys
 
                 // Actually send it.
