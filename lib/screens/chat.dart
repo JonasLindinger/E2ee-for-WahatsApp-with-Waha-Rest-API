@@ -96,7 +96,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController messageController = TextEditingController();
   FocusNode myFocusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
-  List<Message> messanges = [];
+  List<Message> messages = [];
 
   void ScrollDown() {
     scrollController.animateTo(
@@ -117,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Display all messanges
+          // Display all messages
           Expanded(
               child: BuildMessageList(),
           ),
@@ -259,10 +259,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget BuildMessageList() {
     return ListView.builder(
       reverse: true,
-      itemCount: messanges.length,
+      itemCount: messages.length,
       itemBuilder: (context, index) =>
         MessageWidget(
-          message: messanges[index]
+          message: messages[index]
         ),
       controller: scrollController,
     );
@@ -409,7 +409,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final body = response.body;
       final json = jsonDecode(body);
 
-      CheckForNewMessanges();
+      CheckForNewMessages();
 
       ScrollDown();
     } catch (e, st) {
@@ -462,7 +462,7 @@ class _ChatScreenState extends State<ChatScreen> {
         fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         // Deduplicate by id before merging
-        final Set<String> existingIds = messanges.map((m) => m.id).toSet();
+        final Set<String> existingIds = messages.map((m) => m.id).toSet();
         bool updated = false;
 
         final String? storedKeys = prefs?.getString(chatPrefPrefix + chat.id);
@@ -497,7 +497,7 @@ class _ChatScreenState extends State<ChatScreen> {
               }
 
               // Check if we can decrypt
-              if (chatKeys == 2) {
+              if (chatKeys.length == 2) {
                 // Get Private key
                 RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
 
@@ -507,9 +507,7 @@ class _ChatScreenState extends State<ChatScreen> {
             }
 
             // Check if we have an encrypted chat. If we don't search messages for events
-            if (!hasKeys) {
-              // Search for public key
-              if (m.fromMe) continue; // Don't search for the own RSA Key!
+            if (!hasKeys && !m.fromMe) {
 
               if (m.message.contains(chatKeysPrefix)) {
                 // The other person sent us Chat Keys.
@@ -541,6 +539,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   privatePem
                 ];
 
+                chatKeys = keys;
+
                 // Save the keys locally
                 prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
 
@@ -570,7 +570,7 @@ class _ChatScreenState extends State<ChatScreen> {
           }
 
           if (!existingIds.contains(m.id)) {
-            messanges.add(m);
+            messages.add(m);
             existingIds.add(m.id);
             updated = true;
           }
@@ -578,7 +578,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
         if (updated) {
           // Ensure the whole list is newest -> oldest
-          messanges.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
           setState(() {});
         }
       } else {
@@ -597,12 +597,12 @@ class _ChatScreenState extends State<ChatScreen> {
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return; // State was disposed; abort.
 
-    CheckForNewMessanges();
+    CheckForNewMessages();
 
     StartUpdate();
   }
 
-  Future<void> CheckForNewMessanges() async {
+  Future<void> CheckForNewMessages() async {
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
