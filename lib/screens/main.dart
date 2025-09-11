@@ -67,6 +67,7 @@ class _MainScreenState extends State<MainScreen> {
       if (!mounted) return; // State was disposed; abort.
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Create Chat objects
         final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
 
         final List<Chat> fetched = data.map<Chat>((chat) {
@@ -104,6 +105,22 @@ class _MainScreenState extends State<MainScreen> {
           }
         }
 
+        // Get Groups
+        var groups = await GetGroups(sessionName, chats.length);
+        if (groups != null) {
+          List<String> groupIds = [];
+          
+          for (var group in groups) {
+            groupIds.add(group["groupMetadata"]["id"]["_serialized"]);
+          }
+
+          for (final chat in chats) {
+            if (groupIds.contains(chat.id)) {
+              chat.isGroupChat = true;
+            }
+          }
+        }
+
         if (changed) {
           // Keep global list newest -> oldest
           setState(() {});
@@ -127,6 +144,39 @@ class _MainScreenState extends State<MainScreen> {
     await getChats(sessionName, true);
 
     if (loop) Update(loop, sessionName);
+  }
+
+  Future<dynamic> GetGroups(String sessionName, int limit) async {
+    final url = '$serverURL/api/$sessionName/groups';
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "limit": limit.toString(),
+      }
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (!mounted) return; // State was disposed; abort.
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = response.body;
+        final json = jsonDecode(body);
+
+        return json;
+      } else {
+        debugPrint("getChats failed: ${response.statusCode} ${response.body}");
+      }
+    } catch (e, st) {
+      print("Something went wrong trying to get the chats overview: $e");
+      print(st);
+    } finally {
+      _isFetchingChats = false;
+    }
+    return null;
   }
 
   @override

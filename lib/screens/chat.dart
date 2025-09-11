@@ -164,19 +164,20 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.only(bottom: 50),
       child: Row(
         children: [
-          AnimatedContainer(
-            duration: Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              color: buttonState ? Colors.blue : Colors.grey,
-              shape: BoxShape.circle,
+          if (!chat.isGroupChat) // Only allow encryption for private chats. Group chats aren't supported (yet).
+            AnimatedContainer(
+              duration: Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              decoration: BoxDecoration(
+                color: buttonState ? Colors.blue : Colors.grey,
+                shape: BoxShape.circle,
+              ),
+              margin: const EdgeInsets.only(left: 10),
+              child: IconButton(
+                  onPressed: ToggleEncryptionButton,
+                  icon: Icon(Icons.account_circle_rounded, color: Colors.white)
+              ),
             ),
-            margin: const EdgeInsets.only(left: 10),
-            child: IconButton(
-                onPressed: ToggleEncryptionButton,
-                icon: Icon(Icons.account_circle_rounded, color: Colors.white)
-            ),
-          ),
           // TextField
           Expanded(
             child: Container(

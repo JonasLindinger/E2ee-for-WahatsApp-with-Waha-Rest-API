@@ -21,64 +21,64 @@ class ChatWidget extends StatelessWidget {
         height: 70,
         margin: EdgeInsets.only(top: 5, bottom: 5, right: 10, left: 10),
         child: Container (
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                child:  Hero(
-                  tag: chat.id+"-image",
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: chat.picture != "" ?
-                    Image.network(
-                      chat.picture,
-                    ) :
-                    Container(
-                      color: Colors.green,
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  child:  Hero(
+                    tag: chat.id+"-image",
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: chat.picture != "" ?
+                      Image.network(
+                        chat.picture,
+                      ) :
+                      Container(
+                        color: Colors.green,
+                      ),
                     ),
                   ),
                 ),
+                SizedBox(
+                  width: 20,
                 ),
-              SizedBox(
-                width: 20,
-              ),
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.only(right: 30),
-                  height: 50,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        chat.name,
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.only(right: 30),
+                    height: 50,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          chat.name,
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                          ),
                         ),
-                      ),
-                      SizedBox(
-                        height: 1,
-                      ),
-                      Text(
-                        chat.lastMessage?["body"] ?? "",
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey
+                        SizedBox(
+                          height: 1,
                         ),
-                        softWrap: true,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    ],
+                        Text(
+                          chat.lastMessage?["body"] ?? "",
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey
+                          ),
+                          softWrap: true,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          )
+              ],
+            )
         ),
       )
     );
@@ -89,5 +89,6 @@ class Chat {
   String id = "";
   String name = "";
   String picture = "";
+  bool isGroupChat = false;
   Map<String, dynamic>? lastMessage;
 }
