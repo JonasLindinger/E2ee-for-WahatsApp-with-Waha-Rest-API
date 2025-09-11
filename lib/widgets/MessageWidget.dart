@@ -70,8 +70,8 @@ class _MessageWidgetState extends State<MessageWidget> {
               if (message.message.isNotEmpty)
                 Text(
                   message.message,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: message.fromMe ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
                   ),

@@ -223,7 +223,7 @@ class _MainScreenState extends State<MainScreen> {
           const begin = Offset(0.0, 1.0); // start from bottom
           const end = Offset.zero;
           final tween = Tween(begin: begin, end: end);
-          final curvedAnimation = CurvedAnimation(parent: animation, curve: Curves.ease);
+          final curvedAnimation = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
 
           return SlideTransition(
             position: tween.animate(curvedAnimation),
