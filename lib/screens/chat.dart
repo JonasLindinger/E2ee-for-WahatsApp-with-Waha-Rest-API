@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
+import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
 
 import '../widgets/ChatWidget.dart';
@@ -92,8 +93,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppBackground,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppbarBackground,
         foregroundColor: Colors.white,
         title: Row(
           children: [
