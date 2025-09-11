@@ -376,7 +376,7 @@ class _ChatScreenState extends State<ChatScreen> {
           // Encrypt message
           RSAPublicKey publicKey = RSAUtils.publicKeyFromString(chatKeys[0]);
 
-          final encryptedPayload = RSAUtils.encryptHybridToString("Hello, Jonas!", publicKey);
+          final encryptedPayload = RSAUtils.encryptHybridToString(text, publicKey);
 
           final messageToSend = encryptedMessagePrefix + encryptedPayload;
 
