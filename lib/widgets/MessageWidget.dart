@@ -89,9 +89,16 @@ class Message {
   int timestamp = 0;
   String from = "";
   bool fromMe = false;
+  MessageAcknowledgement status = MessageAcknowledgement.delivered;
   String to = "";
   String message = "";
   bool hasMedia = false;
   dynamic media;
   // Todo: Add Media
+}
+
+enum MessageAcknowledgement {
+  sent,
+  delivered,
+  read,
 }

@@ -459,6 +459,9 @@ class _ChatScreenState extends State<ChatScreen> {
             message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
           }
           m.media = (message["media"]);
+
+          m.status = MessageAcknowledgement.values[(message["ack"] ?? 1) - 1];
+
           return m;
         }).toList();
 
@@ -534,8 +537,9 @@ class _ChatScreenState extends State<ChatScreen> {
               else if (m.message.contains(personalPublicKeyPrefix)) {
                 // The other person wants to encrypt the chat or asks for keys
 
-                // Check if we answered or not
-                bool answered = false;
+                // Check if we already read it or not.
+                bool answered = m.status == MessageAcknowledgement.read;
+
                 // Ensure the whole list is newest -> oldest
                 messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
                 answered = messages.indexOf(m) > 0; // We mark the thing as answered, when its not the newest message.
@@ -612,6 +616,9 @@ class _ChatScreenState extends State<ChatScreen> {
           // Ensure the whole list is newest -> oldest
           messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
           setState(() {});
+
+          // Mark all messages as read
+          await MarkAllChatMessagesAsRead();
         }
       } else {
         debugPrint("getMessages failed: ${response.statusCode} ${response.body}");
@@ -622,6 +629,29 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     isPulling = false;
+  }
+
+  Future<void> MarkAllChatMessagesAsRead() async {
+    final url = serverURL + "POST /api/" + sessionName + "/chats/" + chat.id + "/messages/read";
+    final uri = Uri.parse(url);
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+
+        }),
+      );
+
+      final body = response.body;
+      final json = jsonDecode(body);
+
+
+    } catch (e, st) {
+      print("Something went wrong trying to get the status of a session: $e");
+      print(st);
+    }
   }
 
   Future<void> StartUpdate() async {
