@@ -37,16 +37,12 @@ class _MessageWidgetState extends State<MessageWidget> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
-
     final bool isCurrentUser = message.fromMe;
-    final alignment =
-    isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
 
     return Align(
-      alignment: alignment, // position the bubble left/right
+      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          // limit width so long texts wrap; short texts keep minimal size
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         child: Container(
@@ -61,58 +57,56 @@ class _MessageWidgetState extends State<MessageWidget> {
           ),
           padding: const EdgeInsets.all(6),
           margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-          // Remove alignment here so the container sizes to its child
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment:
             isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              // Media / Text
+              // Image centered if exists
               if (message.hasMedia &&
                   (message.media['mimetype'] as String?)
                       ?.toLowerCase()
                       .startsWith('image/') ==
                       true)
-                ChatImageWidget(message: message),
+                Center(child: ChatImageWidget(message: message)),
+              // Audio message
               if (message.hasMedia &&
                   (message.media['mimetype'] as String?)
                       ?.toLowerCase()
                       .startsWith('audio/') ==
                       true)
                 VoiceMessageWidget(message: message),
+              // Text message
               if (message.message.isNotEmpty)
-                Text(
-                  message.message,
-                  style: TextStyle(
-                    color: isCurrentUser ? Colors.black : Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    message.message,
+                    style: TextStyle(
+                      color: isCurrentUser ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-              // Time + checkmarks row at the bottom right
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    formatMessageTime(
-                      message.timestamp * 1000,
-                      timestampIsUtc: true,
-                      use24HourFormat: true,
-                      timeZoneOffset: Duration(hours: 2),
+              // Time + checkmarks row at bottom right
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatMessageTime(
+                        message.timestamp * 1000,
+                        timestampIsUtc: true,
+                        use24HourFormat: true,
+                        timeZoneOffset: Duration(hours: 2), // adjust if needed
+                      ),
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  if (message.fromMe) ...[
-                    SizedBox(width: 2),
-                    Icon(
-                      Icons.check,
-                      size: 16,
-                      color: message.status == MessageAcknowledgement.read
-                          ? Colors.blue
-                          : Colors.grey,
-                    ),
-                    if (message.status != MessageAcknowledgement.sent)
+                    if (isCurrentUser) ...[
+                      SizedBox(width: 2),
                       Icon(
                         Icons.check,
                         size: 16,
@@ -120,8 +114,17 @@ class _MessageWidgetState extends State<MessageWidget> {
                             ? Colors.blue
                             : Colors.grey,
                       ),
+                      if (message.status != MessageAcknowledgement.sent)
+                        Icon(
+                          Icons.check,
+                          size: 16,
+                          color: message.status == MessageAcknowledgement.read
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ],
           ),
