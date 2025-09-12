@@ -159,8 +159,6 @@ class _MessageWidgetState extends State<MessageWidget> {
     }
     else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNew) {
       // We got a chat key request and have to answer!
-      message.message = "Chat key request.";
-
       // Send chat keys
       await SendChatKeys(
         sessionName,
@@ -169,12 +167,14 @@ class _MessageWidgetState extends State<MessageWidget> {
         message,
         hasKeys
       );
+
+      message.message = "Chat key request.";
     }
     else if (!message.fromMe && !hasKeys && message.message.contains(chatKeysMessagePrefix) /*&& isNew*/) { // We should be able to ignore the isTrue part
       // We got chat keys and should save them.
-      message.message = "Chat keys.";
-
       await SaveChatKeys(prefs, chat, message);
+
+      message.message = "Chat keys.";
     }
 
     // Check if the message go changed.
@@ -227,7 +227,7 @@ class _MessageWidgetState extends State<MessageWidget> {
   }
 
   Future<void> SendChatKeys(String sessionName, SharedPreferences prefs, Chat chat, Message message, bool hasKeys) async {
-    String pemPublicKey = message.message.replaceFirst(chatKeysMessagePrefix, "");
+    String pemPublicKey = message.message.replaceFirst(personalPublicKeyPrefix, "");
 
     RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(pemPublicKey);
 
