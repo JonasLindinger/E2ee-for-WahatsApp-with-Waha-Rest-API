@@ -45,6 +45,7 @@ class _ChatUserInputState extends State<ChatUserInput> {
     myFocusNode = widget.myFocusNode;
     chat = widget.chat;
     onSent = widget.onSent;
+    sessionName = widget.sessionName;
 
     messageController.addListener(() {
       if (messageController.text != oldText) {

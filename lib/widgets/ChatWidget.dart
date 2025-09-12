@@ -120,7 +120,7 @@ class _ChatListWidgetState extends State<ChatListWidget> {
       return;
     }
 
-    List<String> keys = ChatConnection.decodeKeys(rawKeys!);
+    List<String> keys = ChatConnection.decodeKeys(rawKeys);
 
     if (message.contains(encryptedMessagePrefix)) {
       // Found an encrypted message!
