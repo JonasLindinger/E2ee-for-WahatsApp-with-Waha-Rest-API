@@ -59,7 +59,7 @@ class _ChatScreenState extends State<ChatScreen> {
     sessionName = widget.sessionName;
 
     ChatConnection.getMessages(sessionName, chat, OnSentMessage, UpdateUI); // Get's the current messages
-    ChatConnection.StartUpdate(sessionName, chat, OnSentMessage, UpdateUI); // Checks for new messages
+    ChatConnection.StartUpdate(sessionName, chat, OnSentMessage, UpdateUI, false); // Checks for new messages
     HandleScrollingUp(); // Subscribes to scroll up event
   }
 

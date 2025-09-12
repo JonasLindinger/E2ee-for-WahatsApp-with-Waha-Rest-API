@@ -18,6 +18,7 @@ class ChatConnection {
   static int oldestMessageTimeStamp = 0;
   static bool isPulling = false;
   static List<String> chatKeys = [];
+  static Chat chatToUpdate = new Chat();
 
   static Future<void> SendKey({
     required String sessionName,
@@ -216,7 +217,10 @@ class ChatConnection {
 
             // Only check messages from the other person(s). and we don't have a key for this group.
             if (!m.fromMe) {
-              if (m.message.contains(chatKeysMessagePrefix) && !hasKeys) {
+              // Check if we already read it or not.
+              bool answered = m.status == MessageAcknowledgement.read;
+
+              if (m.message.contains(chatKeysMessagePrefix) && !hasKeys && answered) {
                 // The other person sendMessage us Chat Keys.
                 String message = m.message.replaceFirst(chatKeysMessagePrefix, "");
                 try {
@@ -236,15 +240,8 @@ class ChatConnection {
 
                 m.message = message;
               }
-              else if (m.message.contains(personalPublicKeyPrefix)) {
+              else if (m.message.contains(personalPublicKeyPrefix) && answered) {
                 // The other person wants to encrypt the chat or asks for keys
-
-                // Check if we already read it or not.
-                bool answered = m.status == MessageAcknowledgement.read;
-
-                // Ensure the whole list is newest -> oldest
-                messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-                answered = messages.indexOf(m) > 0; // We mark the thing as answered, when its not the newest message.
 
                 // If we didn't answered, answer.
                 if (!answered) {
@@ -371,12 +368,30 @@ class ChatConnection {
     }
   }
 
-  static Future<void> StartUpdate(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+  static Future<void> StartUpdate(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI, bool isUpdate) async {
+    if (!isUpdate) {
+      // New chat opened
+      chatToUpdate = chat;
+    }
+
+    // Check if we should update
+    if (chatToUpdate != chat) {
+      // Current chat changed
+      return;
+    }
+
     await Future.delayed(const Duration(seconds: 3));
+
+    // Check if we should update
+    if (chatToUpdate != chat) {
+      // Current chat changed
+      return;
+    }
 
     CheckForNewMessages(sessionName, chat, onSent, onUpdateUI);
 
-    StartUpdate(sessionName, chat, onSent, onUpdateUI);
+    // Loop
+    StartUpdate(sessionName, chat, onSent, onUpdateUI, true);
   }
 
   static Future<void> CheckForNewMessages(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
@@ -395,6 +410,14 @@ class ChatConnection {
   }
 
   static Future<void> getMessages(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+    // Reset values
+    messages.clear();
+    newestMessageTimeStamp = 0;
+    oldestMessageTimeStamp = 0;
+    isPulling = false;
+    List<String> chatKeys = [];
+    Chat chatToUpdate = Chat();
+
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
