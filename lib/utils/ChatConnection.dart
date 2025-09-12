@@ -159,173 +159,38 @@ class ChatConnection {
           return m;
         }).toList();
 
-        // Sort fetched batch by timestamp (newest -> oldest)
-        fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
         // Deduplicate by id before merging
         final Set<String> existingIds = messages.map((m) => m.id).toSet();
-        bool updated = false;
 
-        final String? storedKeys = prefs.getString(chatPrefPrefix + chat.id);
-        bool hasKeys = storedKeys != null;
-        if (hasKeys) {
-          hasKeys = storedKeys.isNotEmpty;
+        // Handle fetched messages
+        bool listChanged = false;
+        bool gotANewMessage = false;
+        for (final message in fetched) {
+          if ((message.message.isNotEmpty || message.hasMedia)) continue; // Skip the message, if it has no content (no message and no media)
+
+          if (existingIds.contains(message.id)) continue; // If the message is already in the list, skip it.
+
+          // Add the message to list
+          if (message.timestamp > newestMessageTimeStamp) {
+            newestMessageTimeStamp = message.timestamp;
+            gotANewMessage = true;
+          }
+          if (oldestMessageTimeStamp == 0 || message.timestamp < oldestMessageTimeStamp) {
+            oldestMessageTimeStamp = message.timestamp;
+          }
+          messages.add(message);
+          listChanged = true;
         }
 
-        for (final m in fetched) {
-          if (m.id.isEmpty) continue;
+        messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-          // Check if the message has content to display or is just useless
-          bool hasContent = false;
-          if (m.hasMedia) hasContent = true;
-          if (m.message.isNotEmpty) hasContent = true;
-
-          // If the message has no content, it's useless and we don't display it.
-          if (!hasContent) continue;
-
-          // Add to list
-          if (!existingIds.contains(m.id)) {
-            messages.add(m);
-            existingIds.add(m.id);
-            updated = true;
-          }
-
-          if (!chat.isGroupChat) { // Only do encryption stuff on private chats. not group chats
-            // Do Encryption stuff
-            if (m.message.contains(encryptedMessagePrefix)) {
-              String payload = m.message.replaceFirst(encryptedMessagePrefix, "");
-
-              if (isValidHybridPayload(payload)) {
-                if (chatKeys.isEmpty) {
-                  var savedKeys = prefs.getString(chatPrefPrefix + chat.id);
-                  if (savedKeys != null) chatKeys = decodeKeys(savedKeys);
-                }
-
-                if (chatKeys.length == 2) {
-                  RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
-                  try {
-                    m.message = RSAUtils.decryptHybridFromString(payload, privateKey);
-                  } catch (e, st) {
-                    print("Failed to decrypt message: $payload");
-                    print(e);
-                    print(st);
-                    m.message = "[Failed to decrypt message]";
-                  }
-                } else {
-                  m.message = "[No chat keys available]";
-                }
-              }
-              else {
-                m.message = "[Invalid encrypted message]";
-              }
-            }
-
-            // Only check messages from the other person(s). and we don't have a key for this group.
-            if (!m.fromMe) {
-              // Check if we already read it or not.
-              bool answered = m.status == MessageAcknowledgement.read;
-
-              if (m.message.contains(chatKeysMessagePrefix) && !hasKeys && answered) {
-                // The other person sendMessage us Chat Keys.
-                String message = m.message.replaceFirst(chatKeysMessagePrefix, "");
-                try {
-                  message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
-
-                  // Extract keys
-                  List<String> keys = decodeKeys(message);
-
-                  // Save keys
-                  prefs.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
-                }
-                catch (e, st) {
-                  print("Something went wrong trying to get the chat messages$e");
-                  print(st);
-                  message = "Failed to encrypt the chat Keys.";
-                }
-
-                m.message = message;
-              }
-              else if (m.message.contains(personalPublicKeyPrefix) && answered) {
-                // The other person wants to encrypt the chat or asks for keys
-
-                // If we didn't answered, answer.
-                if (!answered) {
-                  // Get the public key from the other person
-                  String otherPersonsPemPublicKey = m.message.replaceFirst(personalPublicKeyPrefix, "");
-                  RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(otherPersonsPemPublicKey);
-
-                  // Try to use existing keys
-                  List<String> keys = chatKeys;
-
-                  // If we have no keys, create keys
-                  if (keys.length != 2) {
-                    // Generate public keys for the chat
-                    final keyPair = RSAUtils.generateRSAKeyPair();
-                    final publicKey = keyPair.publicKey;
-                    final privateKey = keyPair.privateKey;
-
-                    // convert to string
-                    final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
-                    final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
-
-                    keys = [
-                      publicPem,
-                      privatePem
-                    ];
-                  }
-                  else {
-                    print("found answered request!");
-                  }
-
-                  // set the new or unchanged keys
-                  chatKeys = keys;
-
-                  // Save the keys locally
-                  prefs.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
-
-                  // Send the keys encrypted with the other persons public key.
-                  String message = encodeKeys(keys);
-                  message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
-                  message = chatKeysMessagePrefix + message; // CK -> Chat Keys
-
-                  // Actually send it.
-                  await ChatConnection.sendMessage(
-                    sessionName: sessionName,
-                    chat: chat,
-                    message: message,
-                    dontEncrypt: true,
-                    onSent: onSent,
-                  );
-                }
-              }
-            }
-
-            if (m.message.contains(chatKeysMessagePrefix)) {
-              m.message = encryptionEstablishedTextReplacement;
-            }
-            else if (m.message.contains(personalPublicKeyPrefix)) {
-              m.message = tryToEstablishEncryptionTextReplacement;
-            }
-          }
-
-          // Add to Message list
-          if (m.timestamp > newestMessageTimeStamp) {
-            newestMessageTimeStamp = m.timestamp;
-          }
-          if (oldestMessageTimeStamp == 0) {
-            oldestMessageTimeStamp = m.timestamp;
-          }
-          if (m.timestamp < oldestMessageTimeStamp) {
-            oldestMessageTimeStamp = m.timestamp;
-          }
-        }
-
-        if (updated) {
+        if (listChanged) {
           // Ensure the whole list is newest -> oldest
-          messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
           onUpdateUI();
+        }
 
-          // Mark all messages as read
+        // Only mark new messages as read, since we can also load old messages and don't wanna send out unnecessary request to the server.
+        if (gotANewMessage) {
           await MarkAllChatMessagesAsRead(sessionName, chat);
         }
       } else {
@@ -417,7 +282,13 @@ class ChatConnection {
     newestMessageTimeStamp = 0;
     oldestMessageTimeStamp = 0;
     isPulling = false;
-    chatKeys = [];
+
+    // 🔥 Load saved keys instead of wiping them
+    final prefs = await SharedPreferences.getInstance();
+    final savedKeys = prefs.getString(chatPrefPrefix + chat.id);
+    chatKeys = (savedKeys != null && savedKeys.isNotEmpty)
+        ? decodeKeys(savedKeys)
+        : [];
 
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(

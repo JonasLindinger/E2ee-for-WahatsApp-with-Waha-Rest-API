@@ -81,8 +81,10 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Display all messages
           ChatMessages(
-              messages: ChatConnection.messages,
-              scrollController: scrollController
+            chat: chat,
+            messages: ChatConnection.messages,
+            sessionName: sessionName,
+            scrollController: scrollController
           ),
 
           // Display user input

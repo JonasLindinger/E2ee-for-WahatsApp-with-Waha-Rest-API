@@ -1,22 +1,27 @@
-import 'dart:async';
-
-import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:basic_utils/basic_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
+import 'package:secure_messanger_app/utils/RSAUtils.dart';
 import 'package:secure_messanger_app/utils/TimeConverter.dart';
 import 'package:secure_messanger_app/widgets/ChatImage.dart';
 import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
-import 'dart:ui' as ui;
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/ImageInspection.dart';
+import '../screens/chat.dart';
+import 'ChatWidget.dart';
+
 
 class MessageWidget extends StatefulWidget {
   final Message message;
+  final Chat chat;
+  final String sessionName;
 
   const MessageWidget({
     super.key,
     required this.message,
+    required this.chat,
+    required this.sessionName,
   });
 
   @override
@@ -37,7 +42,11 @@ class _MessageWidgetState extends State<MessageWidget> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
+    final chat = widget.chat;
+    final String sessionName = widget.sessionName;
     final bool isCurrentUser = message.fromMe;
+
+    HandleMessage(sessionName, chat, message, isCurrentUser);
 
     return Align(
       alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -131,6 +140,157 @@ class _MessageWidgetState extends State<MessageWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> HandleMessage(String sessionName, Chat chat, Message message, bool isFromUs) async {
+    // Get Shared Preferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Check if we have keys
+    bool hasKeys = await HasChatKeys(prefs, chat);
+
+    String startingMessage = message.message;
+
+    bool isNew = message.status != MessageAcknowledgement.read;
+
+    if (message.message.contains(encryptedMessagePrefix)) {
+      // A encrypted message has to be decrypted!
+      message.message = await GetDecryptedMessage(prefs, chat, message);
+    }
+    else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNew) {
+      // We got a chat key request and have to answer!
+      message.message = "Chat key request.";
+
+      // Send chat keys
+      await SendChatKeys(
+        sessionName,
+        prefs,
+        chat,
+        message,
+        hasKeys
+      );
+    }
+    else if (!message.fromMe && !hasKeys && message.message.contains(chatKeysMessagePrefix) /*&& isNew*/) { // We should be able to ignore the isTrue part
+      // We got chat keys and should save them.
+      message.message = "Chat keys.";
+
+      await SaveChatKeys(prefs, chat, message);
+    }
+
+    // Check if the message go changed.
+    if (startingMessage != message.message) {
+      // Update UI
+      setState(() {
+
+      });
+    }
+  }
+
+  Future<String> GetDecryptedMessage(SharedPreferences prefs, Chat chat, Message message) async {
+    String payload = message.message.replaceFirst(encryptedMessagePrefix, "");
+
+    RSAPrivateKey privateKey = await GetPrivateChatKey(prefs, chat);
+
+    String decryptedMessage = "";
+    try {
+      decryptedMessage = RSAUtils.decryptHybridFromString(payload, privateKey);
+    }
+    catch (e, st) {
+      print("Couldn't found a chat key for this message.");
+      decryptedMessage = "[No chat keys available]";
+    }
+
+    return decryptedMessage;
+  }
+
+  Future<bool> HasChatKeys(SharedPreferences prefs, Chat chat) async {
+    var keys = await GetRawChatKeys(prefs, chat);
+
+    bool hasKeys = keys != null;
+    if (hasKeys)
+      hasKeys = keys.isNotEmpty;
+
+    return hasKeys;
+  }
+
+  Future<String?> GetRawChatKeys(SharedPreferences prefs, Chat chat) async {
+    final String? storedKeys = prefs.getString(chatPrefPrefix + chat.id);
+    return storedKeys;
+  }
+
+  Future<RSAPrivateKey> GetPrivateChatKey(SharedPreferences prefs, Chat chat) async {
+    String? rawPemKeys = await GetRawChatKeys(prefs, chat);
+    List<String> pemKeys = ChatConnection.decodeKeys(rawPemKeys!);
+
+    RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(pemKeys[1]); // 0 -> Public Key, 1 -> Private Key
+    return privateKey;
+  }
+
+  Future<void> SendChatKeys(String sessionName, SharedPreferences prefs, Chat chat, Message message, bool hasKeys) async {
+    String pemPublicKey = message.message.replaceFirst(chatKeysMessagePrefix, "");
+
+    RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(pemPublicKey);
+
+    // Get or Create Chat Keys
+    String chatKeys = "";
+    if (hasKeys) {
+      // Get Chat Keys
+      String? rawChatKeys = await GetRawChatKeys(prefs, chat);
+      chatKeys = rawChatKeys!;
+    }
+    else {
+      // Create Chat Keys
+      final keyPair = RSAUtils.generateRSAKeyPair();
+      final publicKey = keyPair.publicKey;
+      final privateKey = keyPair.privateKey;
+
+      final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
+      final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+
+      List<String> newChatKeys = [publicPem, privatePem];
+      chatKeys = ChatConnection.encodeKeys(newChatKeys);
+    }
+
+    try {
+      // Encode the chat keys with the public key of the other person and add the prefix
+      chatKeys = RSAUtils.encryptHybridToString(chatKeys, otherPersonsPublicKey);
+      chatKeys = chatKeysMessagePrefix + chatKeys;
+
+      // Send the Chat Key
+      ChatConnection.sendMessage(
+        sessionName: sessionName,
+        chat: chat,
+        message: chatKeys,
+        dontEncrypt: true,
+        onSent: () {
+
+        }
+      );
+    }
+    catch (e, st) {
+      print("Something went wrong trying to send the chat keys encrypted with the other persons public key");
+    }
+  }
+
+  Future<void> SaveChatKeys(SharedPreferences prefs, Chat chat, Message message) async {
+    String rawChatKeys = message.message.replaceFirst(chatKeysMessagePrefix, "");
+
+    RSAPrivateKey myPrivateKey = await RSAUtils().GetPrivateKey();
+
+    // Decrypt the rawChatKeys
+    try {
+      rawChatKeys = RSAUtils.decryptHybridFromString(rawChatKeys, myPrivateKey);
+    }
+    catch (e, st) {
+      print("Failed decrypt chat keys. probably not for me...");
+      return;
+    }
+
+    // We don't need to decode them to the List of Strings, since they are already in the format we want.
+    // We want it to be a encoded(List<String>), which it should be from the other person by default.
+
+    // Save keys
+    prefs.setString(chatPrefPrefix + chat.id, rawChatKeys);
   }
 }
 
