@@ -151,7 +151,7 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     String startingMessage = message.message;
 
-    bool isNew = message.status != MessageAcknowledgement.read;
+    bool isNew = message.status == MessageAcknowledgement.delivered;
 
     if (message.message.contains(encryptedMessagePrefix)) {
       // A encrypted message has to be decrypted!
@@ -159,6 +159,9 @@ class _MessageWidgetState extends State<MessageWidget> {
     }
     else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNew) {
       // We got a chat key request and have to answer!
+
+      print("PPK found: FM: " + message.fromMe.toString() + ", HK: " + hasKeys.toString() + ", IN: " + isNew.toString() + ", M: " + message.message);
+
       // Send chat keys
       await SendChatKeys(
         sessionName,
@@ -167,13 +170,16 @@ class _MessageWidgetState extends State<MessageWidget> {
         message,
         hasKeys
       );
-
-      message.message = "Chat key request.";
     }
     else if (!message.fromMe && !hasKeys && message.message.contains(chatKeysMessagePrefix) /*&& isNew*/) { // We should be able to ignore the isTrue part
       // We got chat keys and should save them.
       await SaveChatKeys(prefs, chat, message);
+    }
 
+    if (message.message.contains(personalPublicKeyPrefix)) {
+      message.message = "Chat key request.";
+    }
+    else if (message.message.contains(chatKeysMessagePrefix)) {
       message.message = "Chat keys.";
     }
 

@@ -1,17 +1,6 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
-import 'dart:ui';
-
-import 'package:basic_utils/basic_utils.dart';
-import 'package:crypto/crypto.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
-import 'package:secure_messanger_app/utils/RSAUtils.dart';
 import 'package:secure_messanger_app/widgets/ChatAppBar.dart';
 import 'package:secure_messanger_app/widgets/ChatMesseges.dart';
 import 'package:secure_messanger_app/widgets/ChatUserInput.dart';
