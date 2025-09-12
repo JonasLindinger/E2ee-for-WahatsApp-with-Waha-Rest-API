@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:basic_utils/basic_utils.dart';
 import 'package:http/http.dart' as http;
-import 'package:pointycastle/asymmetric/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart';
@@ -25,29 +24,33 @@ class ChatConnection {
     required Chat chat,
     required Function() onSent,
   }) async {
-     SharedPreferences prefs = await SharedPreferences.getInstance();
+    print("SendKey 1");
+    SharedPreferences prefs = await SharedPreferences.getInstance();
 
-     String? keys = prefs.getString(chatPrefPrefix + chat.id);
-     bool chatIsEncrypted = keys != null;
-     if (chatIsEncrypted) {
-       chatIsEncrypted = keys.isNotEmpty;
-     }
+    String? keys = prefs.getString(chatPrefPrefix + chat.id);
+    bool chatIsEncrypted = keys != null;
+    if (chatIsEncrypted) {
+      chatIsEncrypted = keys.isNotEmpty;
+    }
 
-     // We don't need to send the key. The chat is already encrypted.
-     if (chatIsEncrypted) return;
+    print("SendKey 2");
 
-     String publicKey = await RSAUtils().GetPublicKeyAsString();
-     publicKey = personalPublicKeyPrefix + publicKey;
+    // We don't need to send the key. The chat is already encrypted.
+    if (chatIsEncrypted) return;
 
-     String messageToSent = publicKey;
+    String publicKey = await RSAUtils().GetPublicKeyAsString();
+    publicKey = personalPublicKeyPrefix + publicKey;
 
-     await sendMessage(
-       sessionName: sessionName,
-       chat: chat,
-       message: messageToSent,
-       dontEncrypt: false,
-       onSent: onSent,
-     );
+    String messageToSent = publicKey;
+
+    print("SendKey 3");
+    await sendMessage(
+      sessionName: sessionName,
+      chat: chat,
+      message: messageToSent,
+      dontEncrypt: false,
+      onSent: onSent,
+    );
   }
 
   static Future<void> sendMessage({
@@ -78,6 +81,9 @@ class ChatConnection {
 
       // Create messageToSent
       messageToSent = encryptedMessagePrefix + encryptedPayload;
+    }
+    else {
+      messageToSent = message;
     }
 
     // Send the message
@@ -160,13 +166,12 @@ class ChatConnection {
         final Set<String> existingIds = messages.map((m) => m.id).toSet();
         bool updated = false;
 
-        final String? storedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+        final String? storedKeys = prefs.getString(chatPrefPrefix + chat.id);
         bool hasKeys = storedKeys != null;
         if (hasKeys) {
           hasKeys = storedKeys.isNotEmpty;
         }
 
-        int index = 0;
         for (final m in fetched) {
           if (m.id.isEmpty) continue;
 
@@ -192,7 +197,7 @@ class ChatConnection {
 
               if (isValidHybridPayload(payload)) {
                 if (chatKeys.isEmpty) {
-                  var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+                  var savedKeys = prefs.getString(chatPrefPrefix + chat.id);
                   if (savedKeys != null) chatKeys = decodeKeys(savedKeys);
                 }
 
@@ -230,7 +235,7 @@ class ChatConnection {
                   List<String> keys = decodeKeys(message);
 
                   // Save keys
-                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                  prefs.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
                 }
                 catch (e, st) {
                   print("Something went wrong trying to get the chat messages$e");
@@ -256,8 +261,8 @@ class ChatConnection {
                   if (keys.length != 2) {
                     // Generate public keys for the chat
                     final keyPair = RSAUtils.generateRSAKeyPair();
-                    final publicKey = keyPair.publicKey as RSAPublicKey;
-                    final privateKey = keyPair.privateKey as RSAPrivateKey;
+                    final publicKey = keyPair.publicKey;
+                    final privateKey = keyPair.privateKey;
 
                     // convert to string
                     final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
@@ -276,7 +281,7 @@ class ChatConnection {
                   chatKeys = keys;
 
                   // Save the keys locally
-                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                  prefs.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
 
                   // Send the keys encrypted with the other persons public key.
                   String message = encodeKeys(keys);
@@ -313,8 +318,6 @@ class ChatConnection {
           if (m.timestamp < oldestMessageTimeStamp) {
             oldestMessageTimeStamp = m.timestamp;
           }
-
-          index++;
         }
 
         if (updated) {
@@ -351,7 +354,6 @@ class ChatConnection {
 
       final body = response.body;
       final json = jsonDecode(body);
-
 
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
@@ -415,8 +417,7 @@ class ChatConnection {
     newestMessageTimeStamp = 0;
     oldestMessageTimeStamp = 0;
     isPulling = false;
-    List<String> chatKeys = [];
-    Chat chatToUpdate = Chat();
+    chatKeys = [];
 
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(

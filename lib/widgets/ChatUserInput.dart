@@ -77,17 +77,20 @@ class _ChatUserInputState extends State<ChatUserInput> {
         children: [
           if (!chat.isGroupChat) // Only allow encryption for private chats. Group chats aren't supported (yet).
             GestureDetector(
-              onVerticalDragEnd: (details) => {
+              onVerticalDragEnd: (details) {
+                print("End");
                 if (DraggedLongEnoughToSendKey(details)) {
                   ChatConnection.SendKey(
                     sessionName: sessionName,
                     chat: chat,
                     onSent: onSent,
-                  ),
-                },
+                  );
+                };
               },
-              onVerticalDragStart: (details) => {
-                startingDragPosition = details.localPosition,
+              onVerticalDragStart: (details) {
+                print("Start");
+
+                startingDragPosition = details.localPosition;
               },
               child: AnimatedContainer(
                 duration: Duration(milliseconds: 250),
