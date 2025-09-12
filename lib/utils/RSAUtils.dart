@@ -71,8 +71,12 @@ class RSAUtils {
     return jsonString;
   }
 
-  /// ---- HYBRID ENCRYPTION ----
-  /// Encrypts any-length message using AES + RSA
+  static String decryptHybridFromString(String payload, RSAPrivateKey privateKey) {
+    Map<String, String> myMap = Map<String, String>.from(jsonDecode(payload));
+    var decryptedMessage = decryptHybrid(myMap, privateKey);
+    return decryptedMessage;
+  }
+
   static Map<String, String> encryptHybrid(String plaintext, RSAPublicKey publicKey) {
     // 1. Generate random 128-bit AES key
     final aesKey = Uint8List(16);
@@ -87,9 +91,9 @@ class RSAUtils {
     cipher.init(true, PaddedBlockCipherParameters(ParametersWithIV(KeyParameter(aesKey), iv), null));
     final encryptedMessage = cipher.process(Uint8List.fromList(utf8.encode(plaintext)));
 
-    // 3. Encrypt AES key with RSA
-    final rsa = RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
-    final encryptedKey = rsa.process(aesKey);
+    // 3. Encrypt AES key with RSA using OAEP padding
+    final oaepEncrypt = OAEPEncoding(RSAEngine())..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
+    final encryptedKey = oaepEncrypt.process(aesKey);
 
     return {
       "key": base64Encode(encryptedKey),
@@ -98,21 +102,14 @@ class RSAUtils {
     };
   }
 
-  static String decryptHybridFromString(String payload, RSAPrivateKey privateKey) {
-    Map<String, String> myMap = Map<String, String>.from(jsonDecode(payload));
-    var decryptedMessage = decryptHybrid(myMap, privateKey);
-    return decryptedMessage;
-  }
-
-  /// Decrypts hybrid-encrypted message
   static String decryptHybrid(Map<String, String> payload, RSAPrivateKey privateKey) {
     final encryptedKey = base64Decode(payload["key"]!);
     final iv = base64Decode(payload["iv"]!);
     final encryptedMessage = base64Decode(payload["message"]!);
 
-    // 1. Decrypt AES key with RSA
-    final rsa = RSAEngine()..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
-    final aesKey = rsa.process(encryptedKey);
+    // 1. Decrypt AES key with RSA using OAEP padding
+    final oaepDecrypt = OAEPEncoding(RSAEngine())..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+    final aesKey = oaepDecrypt.process(encryptedKey);
 
     // 2. Decrypt message with AES
     final cipher = PaddedBlockCipherImpl(PKCS7Padding(), CBCBlockCipher(AESFastEngine()));
