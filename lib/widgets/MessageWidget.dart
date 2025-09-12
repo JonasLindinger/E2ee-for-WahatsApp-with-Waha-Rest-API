@@ -94,7 +94,6 @@ class Message {
   String message = "";
   bool hasMedia = false;
   dynamic media;
-  // Todo: Add Media
 }
 
 enum MessageAcknowledgement {
