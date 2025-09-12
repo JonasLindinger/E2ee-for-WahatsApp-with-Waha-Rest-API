@@ -5,6 +5,7 @@ import 'package:secure_messanger_app/screens/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../screens/chat.dart';
+import '../utils/ChatConnection.dart';
 import '../utils/RSAUtils.dart';
 
 class ChatListWidget extends StatefulWidget {
@@ -119,7 +120,7 @@ class _ChatListWidgetState extends State<ChatListWidget> {
       return;
     }
 
-    List<String> keys = decodeKeys(rawKeys!);
+    List<String> keys = ChatConnection.decodeKeys(rawKeys!);
 
     if (message.contains(encryptedMessagePrefix)) {
       // Found an encrypted message!

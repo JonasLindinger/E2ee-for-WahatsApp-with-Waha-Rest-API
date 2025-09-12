@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:basic_utils/basic_utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,9 +9,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../screens/chat.dart';
 import '../widgets/ChatWidget.dart';
+import '../widgets/MessageWidget.dart';
 import 'RSAUtils.dart';
 
 class ChatConnection {
+  static List<Message> messages = [];
+  static int newestMessageTimeStamp = 0;
+  static int oldestMessageTimeStamp = 0;
+  static bool isPulling = false;
+  static List<String> chatKeys = [];
+
   static Future<void> SendKey({
     required String sessionName,
     required Chat chat,
@@ -17,7 +26,7 @@ class ChatConnection {
   }) async {
      SharedPreferences prefs = await SharedPreferences.getInstance();
 
-     String? keys = prefs?.getString(chatPrefPrefix + chat.id);
+     String? keys = prefs.getString(chatPrefPrefix + chat.id);
      bool chatIsEncrypted = keys != null;
      if (chatIsEncrypted) {
        chatIsEncrypted = keys.isNotEmpty;
@@ -102,5 +111,367 @@ class ChatConnection {
     }
   }
 
-  
+  static Future<void> SendGetMessagesAPI(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI, Uri uri) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (isPulling) {
+      await waitForCondition(
+            () => !isPulling,
+        pollInterval: const Duration(milliseconds: 50),
+        timeout: const Duration(seconds: 10),
+      );
+    }
+
+    isPulling = true;
+    try {
+      final response = await http.get(
+        uri,
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final json = jsonDecode(response.body);
+
+        // Build the fetched messages list
+        final List<Message> fetched = (json as List<dynamic>).map((message) {
+          final m = Message();
+          m.id = (message["id"] ?? "").toString();
+          m.timestamp = (message["timestamp"] ?? 0) as int;
+          m.from = (message["from"] ?? "").toString();
+          m.fromMe = (message["fromMe"] ?? false) as bool;
+          m.to = (message["to"] ?? "").toString();
+          m.message = (message["body"] ?? "").toString();
+          m.hasMedia = (message["hasMedia"] ?? false) as bool;
+          if (m.hasMedia) {
+            message["media"]["url"] = resolveMediaUrl(message["media"]["url"], serverURL);
+          }
+          m.media = (message["media"]);
+
+          m.status = MessageAcknowledgementX.fromAck(message["ack"]);
+
+          return m;
+        }).toList();
+
+        // Sort fetched batch by timestamp (newest -> oldest)
+        fetched.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+        // Deduplicate by id before merging
+        final Set<String> existingIds = messages.map((m) => m.id).toSet();
+        bool updated = false;
+
+        final String? storedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+        bool hasKeys = storedKeys != null;
+        if (hasKeys) {
+          hasKeys = storedKeys.isNotEmpty;
+        }
+
+        int index = 0;
+        for (final m in fetched) {
+          if (m.id.isEmpty) continue;
+
+          // Check if the message has content to display or is just useless
+          bool hasContent = false;
+          if (m.hasMedia) hasContent = true;
+          if (m.message.isNotEmpty) hasContent = true;
+
+          // If the message has no content, it's useless and we don't display it.
+          if (!hasContent) continue;
+
+          // Add to list
+          if (!existingIds.contains(m.id)) {
+            messages.add(m);
+            existingIds.add(m.id);
+            updated = true;
+          }
+
+          if (!chat.isGroupChat) { // Only do encryption stuff on private chats. not group chats
+            // Do Encryption stuff
+            if (m.message.contains(encryptedMessagePrefix)) {
+              String payload = m.message.replaceFirst(encryptedMessagePrefix, "");
+
+              if (isValidHybridPayload(payload)) {
+                if (chatKeys.isEmpty) {
+                  var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+                  if (savedKeys != null) chatKeys = decodeKeys(savedKeys);
+                }
+
+                if (chatKeys.length == 2) {
+                  RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
+                  try {
+                    m.message = RSAUtils.decryptHybridFromString(payload, privateKey);
+                  } catch (e, st) {
+                    print("Failed to decrypt message: $payload");
+                    print(e);
+                    print(st);
+                    m.message = "[Failed to decrypt message]";
+                  }
+                } else {
+                  m.message = "[No chat keys available]";
+                }
+              }
+              else {
+                m.message = "[Invalid encrypted message]";
+              }
+            }
+
+            // Only check messages from the other person(s). and we don't have a key for this group.
+            if (!m.fromMe) {
+              if (m.message.contains(chatKeysMessagePrefix) && !hasKeys) {
+                // The other person sendMessage us Chat Keys.
+                String message = m.message.replaceFirst(chatKeysMessagePrefix, "");
+                try {
+                  message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
+
+                  // Extract keys
+                  List<String> keys = decodeKeys(message);
+
+                  // Save keys
+                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                }
+                catch (e, st) {
+                  print("Something went wrong trying to get the chat messages$e");
+                  print(st);
+                  message = "Failed to encrypt the chat Keys.";
+                }
+
+                m.message = message;
+              }
+              else if (m.message.contains(personalPublicKeyPrefix)) {
+                // The other person wants to encrypt the chat or asks for keys
+
+                // Check if we already read it or not.
+                bool answered = m.status == MessageAcknowledgement.read;
+
+                // Ensure the whole list is newest -> oldest
+                messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+                answered = messages.indexOf(m) > 0; // We mark the thing as answered, when its not the newest message.
+
+                // If we didn't answered, answer.
+                if (!answered) {
+                  // Get the public key from the other person
+                  String otherPersonsPemPublicKey = m.message.replaceFirst(personalPublicKeyPrefix, "");
+                  RSAPublicKey otherPersonsPublicKey = RSAUtils.publicKeyFromString(otherPersonsPemPublicKey);
+
+                  // Try to use existing keys
+                  List<String> keys = chatKeys;
+
+                  // If we have no keys, create keys
+                  if (keys.length != 2) {
+                    // Generate public keys for the chat
+                    final keyPair = RSAUtils.generateRSAKeyPair();
+                    final publicKey = keyPair.publicKey as RSAPublicKey;
+                    final privateKey = keyPair.privateKey as RSAPrivateKey;
+
+                    // convert to string
+                    final publicPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
+                    final privatePem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+
+                    keys = [
+                      publicPem,
+                      privatePem
+                    ];
+                  }
+                  else {
+                    print("found answered request!");
+                  }
+
+                  // set the new or unchanged keys
+                  chatKeys = keys;
+
+                  // Save the keys locally
+                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+
+                  // Send the keys encrypted with the other persons public key.
+                  String message = encodeKeys(keys);
+                  message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
+                  message = chatKeysMessagePrefix + message; // CK -> Chat Keys
+
+                  // Actually send it.
+                  await ChatConnection.sendMessage(
+                    sessionName: sessionName,
+                    chat: chat,
+                    message: message,
+                    dontEncrypt: true,
+                    onSent: onSent,
+                  );
+                }
+              }
+            }
+
+            if (m.message.contains(chatKeysMessagePrefix)) {
+              m.message = encryptionEstablishedTextReplacement;
+            }
+            else if (m.message.contains(personalPublicKeyPrefix)) {
+              m.message = tryToEstablishEncryptionTextReplacement;
+            }
+          }
+
+          // Add to Message list
+          if (m.timestamp > newestMessageTimeStamp) {
+            newestMessageTimeStamp = m.timestamp;
+          }
+          if (oldestMessageTimeStamp == 0) {
+            oldestMessageTimeStamp = m.timestamp;
+          }
+          if (m.timestamp < oldestMessageTimeStamp) {
+            oldestMessageTimeStamp = m.timestamp;
+          }
+
+          index++;
+        }
+
+        if (updated) {
+          // Ensure the whole list is newest -> oldest
+          messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          onUpdateUI();
+
+          // Mark all messages as read
+          await MarkAllChatMessagesAsRead(sessionName, chat);
+        }
+      } else {
+        print("getMessages failed: ${response.statusCode} ${response.body}");
+      }
+    } catch (e, st) {
+      print("Something went wrong trying to get the chat messages$e");
+      print(st);
+    }
+
+    isPulling = false;
+  }
+
+  static Future<void> MarkAllChatMessagesAsRead(String sessionName, Chat chat) async {
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages/read";
+    final uri = Uri.parse(url);
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+
+        }),
+      );
+
+      final body = response.body;
+      final json = jsonDecode(body);
+
+
+    } catch (e, st) {
+      print("Something went wrong trying to get the status of a session: $e");
+      print(st);
+    }
+  }
+
+  static bool isValidHybridPayload(String s) {
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(s));
+      return map.containsKey("key") && map.containsKey("iv") && map.containsKey("message");
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> StartUpdate(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    CheckForNewMessages(sessionName, chat, onSent, onUpdateUI);
+
+    StartUpdate(sessionName, chat, onSent, onUpdateUI);
+  }
+
+  static Future<void> CheckForNewMessages(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "filter.timestamp.gte": newestMessageTimeStamp.toString(),
+        "session": sessionName,
+      },
+    );
+
+    await SendGetMessagesAPI(sessionName, chat, onSent, onUpdateUI, uri);
+  }
+
+  static Future<void> getMessages(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "offset": "0",
+        "session": sessionName,
+      },
+    );
+
+    await SendGetMessagesAPI(sessionName, chat, onSent, onUpdateUI, uri);
+  }
+
+  static Future<void> getOldMessages(String sessionName, Chat chat, Function() onSent, Function() onUpdateUI) async {
+    print("Pulling old: " + oldestMessageTimeStamp.toString() + " - " + newestMessageTimeStamp.toString());
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
+    final uri = Uri.parse(url).replace(
+      queryParameters: {
+        "downloadMedia": "true", // Todo
+        "chatId": chat.id.toString(),
+        "limit": "20",
+        "filter.timestamp.lte": oldestMessageTimeStamp.toString(),
+        "session": sessionName,
+      },
+    );
+
+    await SendGetMessagesAPI(sessionName, chat, onSent, onUpdateUI, uri);
+  }
+
+  static String resolveMediaUrl(String rawUrl, String serverUrl) {
+    final server = Uri.parse(serverUrl);
+    Uri uri = Uri.parse(rawUrl);
+
+    // Handle relative paths like "/files/img.jpg"
+    if (!uri.hasScheme) {
+      return server.resolve(rawUrl).toString();
+    }
+
+    // Rewrite localhost/loopback to your server host
+    if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
+      uri = uri.replace(
+        scheme: server.scheme,
+        host: server.host,
+        port: server.hasPort ? server.port : null,
+      );
+    }
+    return uri.toString();
+  }
+
+  static Future<void> waitForCondition(
+      FutureOr<bool> Function() condition, {
+        Duration pollInterval = const Duration(milliseconds: 50),
+        Duration? timeout,
+      }) async {
+    final sw = Stopwatch()..start();
+    while (true) {
+      if (await condition()) return;
+      if (timeout != null && sw.elapsed >= timeout) {
+        throw TimeoutException('Condition not met within $timeout');
+      }
+      await Future.delayed(pollInterval);
+    }
+  }
+
+  static String encodeKeys(List<String> keys) {
+    if (keys.length != 2) {
+      throw ArgumentError('keys must contain exactly 2 items.');
+    }
+    return jsonEncode(keys); // e.g. ["key1","key2"]
+  }
+
+  static List<String> decodeKeys(String encoded) {
+    final parsed = jsonDecode(encoded);
+    if (parsed is! List || parsed.length != 2 || parsed.any((e) => e is! String)) {
+      throw const FormatException('Invalid encoded keys payload (expected 2 strings).');
+    }
+    return List<String>.from(parsed);
+  }
 }
