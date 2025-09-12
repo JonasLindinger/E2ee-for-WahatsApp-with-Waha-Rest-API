@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
+import 'package:secure_messanger_app/utils/TimeConverter.dart';
 import 'package:secure_messanger_app/widgets/ChatImage.dart';
 import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
 import 'dart:ui' as ui;
@@ -62,21 +63,67 @@ class _MessageWidgetState extends State<MessageWidget> {
           margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
           // Remove alignment here so the container sizes to its child
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment:
+            isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              if (message.hasMedia && (message.media['mimetype'] as String?)?.toLowerCase().startsWith('image/') == true)
+              // Media / Text
+              if (message.hasMedia &&
+                  (message.media['mimetype'] as String?)
+                      ?.toLowerCase()
+                      .startsWith('image/') ==
+                      true)
                 ChatImageWidget(message: message),
-              if (message.hasMedia && (message.media['mimetype'] as String?)?.toLowerCase().startsWith('audio/') == true)
+              if (message.hasMedia &&
+                  (message.media['mimetype'] as String?)
+                      ?.toLowerCase()
+                      .startsWith('audio/') ==
+                      true)
                 VoiceMessageWidget(message: message),
               if (message.message.isNotEmpty)
                 Text(
                   message.message,
                   style: TextStyle(
-                    color: message.fromMe ? Colors.black : Colors.white,
+                    color: isCurrentUser ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
                   ),
                 ),
-            ]
+              // Time + checkmarks row at the bottom right
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    formatMessageTime(
+                      message.timestamp * 1000,
+                      timestampIsUtc: true,
+                      use24HourFormat: true,
+                      timeZoneOffset: Duration(hours: 2),
+                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  if (message.fromMe) ...[
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.check,
+                      size: 16,
+                      color: message.status == MessageAcknowledgement.read
+                          ? Colors.blue
+                          : Colors.grey,
+                    ),
+                    if (message.status != MessageAcknowledgement.sent)
+                      Icon(
+                        Icons.check,
+                        size: 16,
+                        color: message.status == MessageAcknowledgement.read
+                            ? Colors.blue
+                            : Colors.grey,
+                      ),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
       ),
