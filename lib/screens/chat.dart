@@ -52,6 +52,8 @@ class _ChatScreenState extends State<ChatScreen> {
   FocusNode myFocusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
 
+  List<Message> messages = [];
+
   @override
   void initState() {
     super.initState();

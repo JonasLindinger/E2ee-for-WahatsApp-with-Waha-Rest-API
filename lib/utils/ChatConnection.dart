@@ -166,7 +166,7 @@ class ChatConnection {
         bool listChanged = false;
         bool gotANewMessage = false;
         for (final message in fetched) {
-          if ((message.message.isNotEmpty || message.hasMedia)) continue; // Skip the message, if it has no content (no message and no media)
+          if (!(message.message.isNotEmpty || message.hasMedia)) continue; // Skip the message, if it has no content (no message and no media)
 
           if (existingIds.contains(message.id)) continue; // If the message is already in the list, skip it.
 
@@ -265,7 +265,7 @@ class ChatConnection {
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
-        "downloadMedia": "true", // Todo
+        "downloadMedia": "true",
         "chatId": chat.id.toString(),
         "limit": "20",
         "filter.timestamp.gte": newestMessageTimeStamp.toString(),
