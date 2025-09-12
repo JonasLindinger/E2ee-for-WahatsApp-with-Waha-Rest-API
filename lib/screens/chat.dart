@@ -500,24 +500,30 @@ class _ChatScreenState extends State<ChatScreen> {
           if (!chat.isGroupChat) { // Only do encryption stuff on private chats. not group chats
             // Do Encryption stuff
             if (m.message.contains(encryptedMessagePrefix)) {
-              // Found an encrypted message!
-              String message = m.message.replaceFirst(encryptedMessagePrefix, "");
+              String payload = m.message.replaceFirst(encryptedMessagePrefix, "");
 
-              // Check for keys
-              if (chatKeys.isEmpty) {
-                var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
-                if (savedKeys != null) {
-                  chatKeys = decodeKeys(savedKeys);
+              if (isValidHybridPayload(payload)) {
+                if (chatKeys.isEmpty) {
+                  var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
+                  if (savedKeys != null) chatKeys = decodeKeys(savedKeys);
+                }
+
+                if (chatKeys.length == 2) {
+                  RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
+                  try {
+                    m.message = RSAUtils.decryptHybridFromString(payload, privateKey);
+                  } catch (e, st) {
+                    print("Failed to decrypt message: $payload");
+                    print(e);
+                    print(st);
+                    m.message = "[Failed to decrypt message]";
+                  }
+                } else {
+                  m.message = "[No chat keys available]";
                 }
               }
-
-              // Check if we can decrypt
-              if (chatKeys.length == 2) {
-                // Get Private key
-                RSAPrivateKey privateKey = RSAUtils.privateKeyFromString(chatKeys[1]);
-
-                // Decrypt Message
-                m.message = RSAUtils.decryptHybridFromString(message, privateKey);
+              else {
+                m.message = "[Invalid encrypted message]";
               }
             }
 
@@ -526,13 +532,22 @@ class _ChatScreenState extends State<ChatScreen> {
               if (m.message.contains(chatKeysPrefix) && !hasKeys) {
                 // The other person sent us Chat Keys.
                 String message = m.message.replaceFirst(chatKeysPrefix, "");
-                message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
+                try {
+                  message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
 
-                // Extract keys
-                List<String> keys = decodeKeys(message);
+                  // Extract keys
+                  List<String> keys = decodeKeys(message);
 
-                // Save keys
-                prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                  // Save keys
+                  prefs?.setString(chatPrefPrefix + chat.id, encodeKeys(keys));
+                }
+                catch (e, st) {
+                  print("Something went wrong trying to get the chat messages$e");
+                  print(st);
+                  message = "Failed to encrypt the chat Keys.";
+                }
+
+                m.message = message;
               }
               else if (m.message.contains(personalPublicKeyPrefix)) {
                 // The other person wants to encrypt the chat or asks for keys
@@ -651,6 +666,15 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e, st) {
       print("Something went wrong trying to get the status of a session: $e");
       print(st);
+    }
+  }
+
+  bool isValidHybridPayload(String s) {
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(s));
+      return map.containsKey("key") && map.containsKey("iv") && map.containsKey("message");
+    } catch (_) {
+      return false;
     }
   }
 
