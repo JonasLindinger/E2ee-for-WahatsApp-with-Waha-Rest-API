@@ -311,29 +311,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: CupertinoColors.black,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: TextField(
-                style: TextStyle(
-                  color: Colors.white,
-                  decorationColor: Colors.white,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: 150, // Max height before scrolling
                 ),
-                controller: messageController,
-                focusNode: myFocusNode,
-                decoration: InputDecoration(
-                  hintText: "Nachricht schreiben...",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: Colors.grey.shade600),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
+                child: Scrollbar(
+                  child: TextField(
+                    controller: messageController,
+                    focusNode: myFocusNode,
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Nachricht schreiben...",
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: BorderSide(color: Colors.grey.shade600),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    keyboardType: TextInputType.multiline,
+                    minLines: 1,
+                    maxLines: null, // Allow growing lines
                   ),
                 ),
-                obscureText: false,
               ),
             ),
           ),
