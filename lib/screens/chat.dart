@@ -112,7 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void UpdateUI() {
-    if (!mounted) return
+    if (!mounted) return;
     setState(() {
 
     });
