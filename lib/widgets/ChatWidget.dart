@@ -135,7 +135,7 @@ class _ChatListWidgetState extends State<ChatListWidget> {
         message = "Encrypted Message";
       }
     }
-    else if (message.contains(chatKeysPrefix)) {
+    else if (message.contains(chatKeysMessagePrefix)) {
       message = "Encryption established.";
     }
     else if (message.contains(personalPublicKeyPrefix)) {

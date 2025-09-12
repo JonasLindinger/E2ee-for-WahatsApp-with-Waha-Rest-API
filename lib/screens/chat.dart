@@ -9,8 +9,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
+import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/utils/RSAUtils.dart';
+import 'package:secure_messanger_app/widgets/ChatAppBar.dart';
+import 'package:secure_messanger_app/widgets/ChatMesseges.dart';
+import 'package:secure_messanger_app/widgets/ChatUserInput.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,7 +38,7 @@ const String chatPrefPrefix = "~Chat-";
 
 const String personalPublicKeyPrefix = "~PPK: ";  // PPK -> Personal Public Key
 const String encryptedMessagePrefix = "~EM: ";  // EM -> Encrypted Message
-const String chatKeysPrefix = "~CK: ";  // CK -> Chat Keys
+const String chatKeysMessagePrefix = "~CK: ";  // CK -> Chat Keys
 const String encryptionEstablishedTextReplacement = "Encryption established.";
 const String tryToEstablishEncryptionTextReplacement = "Trying to establish encryption.";
 
@@ -46,16 +50,14 @@ class _ChatScreenState extends State<ChatScreen> {
   int oldestMessageTimeStamp = 0;
   bool isPulling = false;
 
-  // Encryption Button
-  bool buttonState = false; // true -> encrypt. false -> normal messaging
-
-  double sendPublicKeyGestureLength = 80;
-  bool whatsAppLikeAppBar = false;
-
   // Obtain shared preferences.
   SharedPreferences? prefs;
 
   List<String> chatKeys = [];
+
+  FocusNode myFocusNode = FocusNode();
+  final ScrollController scrollController = ScrollController();
+  List<Message> messages = [];
 
   @override
   void initState() {
@@ -65,17 +67,44 @@ class _ChatScreenState extends State<ChatScreen> {
 
     getMessages(); // Get's the current messages
     StartUpdate(); // Checks for new messages
+    HandleScrollingUp(); // Subscribes to scroll up event
+  }
 
-    myFocusNode.addListener(() {
-      if (myFocusNode.hasFocus) {
-        // cause a delay so that the keyboard has time to show up
-        Future.delayed(const Duration(milliseconds: 500), () => {
-          if (mounted)
-            ScrollDown(),
-        });
-      }
-    });
+  @override
+  void dispose() {
+    myFocusNode.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppBackground,
+      appBar: ChatAppBar(
+          whatsAppLikeAppBar: false,
+          chat: chat
+      ),
+      body: Column(
+        children: [
+          // Display all messages
+          ChatMessages(
+              messages: messages,
+              scrollController: scrollController
+          ),
+
+          // Display user input
+          ChatUserInput(
+            myFocusNode: myFocusNode,
+            chat: chat,
+            sessionName: sessionName,
+            onSent: OnSentMessage,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void HandleScrollingUp() {
     scrollController.addListener(() {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
         // Load new messages
@@ -83,351 +112,17 @@ class _ChatScreenState extends State<ChatScreen> {
         getOldMessages(); // gets the next old messages
       }
     });
-
-    Future.delayed(
-      const Duration(milliseconds: 500),
-          () => ScrollDown(),
-    );
   }
 
-  @override
-  void dispose() {
-    myFocusNode.dispose();
-    messageController.dispose();
-    super.dispose();
-  }
+  void OnSentMessage() {
+    CheckForNewMessages();
 
-  final TextEditingController messageController = TextEditingController();
-  FocusNode myFocusNode = FocusNode();
-  final ScrollController scrollController = ScrollController();
-  List<Message> messages = [];
-
-  void ScrollDown() {
+    // Scroll down to the beginning of the chat.
     scrollController.animateTo(
       scrollController.position.minScrollExtent,
       duration: const Duration(seconds: 1),
       curve: Curves.fastOutSlowIn,
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppBackground,
-      appBar: AppBar(
-        backgroundColor: AppbarBackground,
-        foregroundColor: Colors.white,
-        title: whatsAppLikeAppBar ? WhatsAppLikeAppBar() : NotWhatsAppLikeAppBar(),
-      ),
-      body: Column(
-        children: [
-          // Display all messages
-          Expanded(
-            child: BuildMessageList(),
-          ),
-          // User input
-          BuildUserInput(),
-        ],
-      ),
-    );
-  }
-
-  Widget WhatsAppLikeAppBar() {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          child: Hero(
-            tag: chat.id+"-image",
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: chat.picture != "" ?
-              Image.network(
-                chat.picture,
-              ) :
-              Container(
-                color: Colors.green,
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 20,
-        ),
-        Text(
-          chat.name,
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget NotWhatsAppLikeAppBar() {
-    return Row(
-      children: [
-        // 1. Ein Expanded-Widget, das den Platz links vom Namen füllt
-        const Expanded(
-          child: SizedBox(),
-        ),
-
-        // 2. Der Name, der nun durch die Expanded-Widgets zentriert wird
-        Text(
-          chat.name,
-          style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 24
-          ),
-        ),
-
-        // 3. Ein Expanded-Widget, das den gesamten verbleibenden Platz füllt
-        //    und das Profilbild nach ganz rechts schiebt.
-        const Expanded(
-          child: SizedBox(),
-        ),
-
-        // 4. Das Profilbild, das nun ganz rechts steht
-        Container(
-          width: 40,
-          height: 40,
-          child: Hero(
-            tag: chat.id + "-image",
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: chat.picture != ""
-                  ? Image.network(
-                chat.picture,
-              )
-                  : Container(
-                color: Colors.green,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void ToggleEncryptionButton() async {
-    if (prefs == null) {
-      prefs = await SharedPreferences.getInstance();
-    }
-    else {
-      await prefs?.reload();
-    }
-
-    String? keys = prefs?.getString(chatPrefPrefix + chat.id);
-    if (keys == null || keys.isEmpty) return; //  Chat has no keys
-
-    setState(() {
-      buttonState = !buttonState;
-    });
-  }
-
-  void SendKey() async {
-    if (prefs == null) {
-      prefs = await SharedPreferences.getInstance();
-    }
-    else {
-      await prefs?.reload();
-    }
-
-    String? keys = prefs?.getString(chatPrefPrefix + chat.id);
-    bool chatIsEncrypted = keys != null;
-    if (chatIsEncrypted) {
-      chatIsEncrypted = keys.isNotEmpty;
-    }
-
-    // We don't need to send the key. The chat is already encrypted.
-    if (chatIsEncrypted) return;
-
-    String publicKey = await RSAUtils().GetPublicKeyAsString();
-    publicKey = personalPublicKeyPrefix + publicKey;
-
-    sendMessage(publicKey, true);
-  }
-
-  double distanceBetween(Offset a, Offset b) => (a - b).distance;
-  bool DragedLongEnoughToSendKey(DragEndDetails details) {
-    Offset endDragPosition = details.localPosition;
-    var distance = distanceBetween(startingDragPosition, endDragPosition);
-
-    return distance >= sendPublicKeyGestureLength;
-  }
-
-  Widget BuildMessageList() {
-    return ListView.builder(
-      reverse: true,
-      itemCount: messages.length,
-      itemBuilder: (context, index) =>
-          MessageWidget(
-              message: messages[index]
-          ),
-      controller: scrollController,
-    );
-  }
-
-  Offset startingDragPosition = Offset(0, 0);
-
-  Widget BuildUserInput() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 50),
-      child: Row(
-        children: [
-          if (!chat.isGroupChat) // Only allow encryption for private chats. Group chats aren't supported (yet).
-            GestureDetector(
-              onVerticalDragEnd: (details) => {
-                if (DragedLongEnoughToSendKey(details)) {
-                  SendKey(),
-                },
-              },
-              onVerticalDragStart: (details) => {
-                startingDragPosition = details.localPosition,
-              },
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                decoration: BoxDecoration(
-                  color: buttonState ? Colors.blue : Colors.grey,
-                  shape: BoxShape.circle,
-                ),
-                margin: const EdgeInsets.only(left: 10),
-                child: IconButton(
-                    onPressed: ToggleEncryptionButton,
-                    icon: Icon(Icons.account_circle_rounded, color: Colors.white)
-                ),
-              ),
-            ),
-          // TextField
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(left: 10),
-              decoration: BoxDecoration(
-                color: CupertinoColors.black,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: 150, // Max height before scrolling
-                ),
-                child: Scrollbar(
-                  child: TextField(
-                    controller: messageController,
-                    focusNode: myFocusNode,
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Nachricht schreiben...",
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: BorderSide(color: Colors.grey.shade600),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                    ),
-                    keyboardType: TextInputType.multiline,
-                    minLines: 1,
-                    maxLines: null, // Allow growing lines
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Send button
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.green,
-              shape: BoxShape.circle,
-            ),
-            margin: const EdgeInsets.only(right: 10, left: 10),
-            child: IconButton(
-                onPressed: () => {
-                  sendMessage(messageController.text, false),
-                  messageController.clear(),
-                },
-                icon: Icon(Icons.send_rounded, color: Colors.white)
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> sendMessage(String text, bool dontEncrypt) async {
-    if (text == null) return;
-    if (text.isEmpty) return;
-
-    if (!dontEncrypt) {
-      prefs = await SharedPreferences.getInstance();
-
-      bool canEncrypt = prefs?.getString(chatPrefPrefix + chat.id) != null;
-
-      if (canEncrypt && buttonState) {
-        if (chatKeys.isEmpty) {
-          var savedKeys = prefs?.getString(chatPrefPrefix + chat.id);
-          if (savedKeys != null) {
-            chatKeys = decodeKeys(savedKeys);
-          }
-        }
-
-        // Get pom public key
-        if (chatKeys.length == 2) {
-          // Encrypt message
-          RSAPublicKey publicKey = RSAUtils.publicKeyFromString(chatKeys[0]);
-
-          final encryptedPayload = RSAUtils.encryptHybridToString(text, publicKey);
-
-          final messageToSend = encryptedMessagePrefix + encryptedPayload;
-
-          // Encrypt text with public key
-          text = messageToSend; // EM -> Encrypted Message
-        }
-        else {
-          print("Something went wrong. We should encrypt, but have no keys.");
-        }
-      }
-    }
-
-    final url = serverURL + "/api/sendText";
-    final uri = Uri.parse(url);
-
-    try {
-      final response = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "chatId": chat.id,
-          "reply_to": null, // Todo
-          "text": text,
-          "linkPreview": false, // Todo
-          "linkPreviewHighQuality": false, // Todo
-          "session": sessionName
-        }),
-      );
-
-      final body = response.body;
-      final json = jsonDecode(body);
-
-      CheckForNewMessages();
-
-      ScrollDown();
-    } catch (e, st) {
-      print("Something went wrong trying to get the status of a session: $e");
-      print(st);
-    }
   }
 
   Future<void> SendGetMessagesAPI(Uri uri) async {
@@ -537,9 +232,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
             // Only check messages from the other person(s). and we don't have a key for this group.
             if (!m.fromMe) {
-              if (m.message.contains(chatKeysPrefix) && !hasKeys) {
-                // The other person sent us Chat Keys.
-                String message = m.message.replaceFirst(chatKeysPrefix, "");
+              if (m.message.contains(chatKeysMessagePrefix) && !hasKeys) {
+                // The other person sendMessage us Chat Keys.
+                String message = m.message.replaceFirst(chatKeysMessagePrefix, "");
                 try {
                   message = RSAUtils.decryptHybridFromString(message, await RSAUtils().GetPrivateKey());
 
@@ -605,15 +300,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Send the keys encrypted with the other persons public key.
                   String message = encodeKeys(keys);
                   message = RSAUtils.encryptHybridToString(message, otherPersonsPublicKey);
-                  message = chatKeysPrefix + message; // CK -> Chat Keys
+                  message = chatKeysMessagePrefix + message; // CK -> Chat Keys
 
                   // Actually send it.
-                  sendMessage(message, true);
+                  await ChatConnection.sendMessage(
+                    sessionName: sessionName,
+                    chat: chat,
+                    message: message,
+                    dontEncrypt: true,
+                    onSent: OnSentMessage,
+                  );
                 }
               }
             }
 
-            if (m.message.contains(chatKeysPrefix)) {
+            if (m.message.contains(chatKeysMessagePrefix)) {
               m.message = encryptionEstablishedTextReplacement;
             }
             else if (m.message.contains(personalPublicKeyPrefix)) {
