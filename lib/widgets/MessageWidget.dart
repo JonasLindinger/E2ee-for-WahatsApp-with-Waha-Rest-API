@@ -101,3 +101,19 @@ enum MessageAcknowledgement {
   delivered,
   read,
 }
+
+extension MessageAcknowledgementX on MessageAcknowledgement {
+  static MessageAcknowledgement fromAck(dynamic rawAck) {
+    final ack = (rawAck ?? 1) as int;
+
+    // WhatsApp ack: 0 = pending/unknown, 1 = sent, 2 = delivered, 3 = read
+    final index = ack - 1;
+
+    if (index < 0 || index >= MessageAcknowledgement.values.length) {
+      // Fallback to "sent" (or maybe create a separate "pending" state)
+      return MessageAcknowledgement.sent;
+    }
+
+    return MessageAcknowledgement.values[index];
+  }
+}

@@ -460,7 +460,7 @@ class _ChatScreenState extends State<ChatScreen> {
           }
           m.media = (message["media"]);
 
-          m.status = MessageAcknowledgement.values[(message["ack"] ?? 1) - 1];
+          m.status = MessageAcknowledgementX.fromAck(message["ack"]);
 
           return m;
         }).toList();
@@ -632,7 +632,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> MarkAllChatMessagesAsRead() async {
-    final url = serverURL + "POST /api/" + sessionName + "/chats/" + chat.id + "/messages/read";
+    final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages/read";
     final uri = Uri.parse(url);
 
     try {
