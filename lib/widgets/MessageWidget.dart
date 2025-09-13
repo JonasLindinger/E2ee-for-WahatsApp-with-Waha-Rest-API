@@ -50,9 +50,10 @@ class _MessageWidgetState extends State<MessageWidget> {
     final String sessionName = widget.sessionName;
     final bool isCurrentUser = message.fromMe;
 
-    HandleMessage(sessionName, chat, message, isCurrentUser, widget.messages);
+    String messageToDisplay = GetMessageToDisplay(message);
+    messageToDisplay = normalizeLinks(messageToDisplay);
 
-    String normalizedMessage = normalizeLinks(message.message);
+    HandleMessage(sessionName, chat, message, isCurrentUser, widget.messages);
 
     return Align(
       alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -92,11 +93,11 @@ class _MessageWidgetState extends State<MessageWidget> {
                       true)
                 VoiceMessageWidget(message: message),
               // Text message
-              if (message.message.isNotEmpty)
+              if (messageToDisplay.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: SelectableLinkify(
-                    text: normalizedMessage,
+                    text: messageToDisplay,
                     style: TextStyle(
                       color: isCurrentUser ? Colors.black : Colors.white,
                       fontWeight: FontWeight.w500,
@@ -160,6 +161,14 @@ class _MessageWidgetState extends State<MessageWidget> {
         ),
       ),
     );
+  }
+
+  String GetMessageToDisplay(Message message) {
+    if (message.message.contains(encryptedMessagePrefix) || message.message.contains(personalPublicKeyPrefix) || message.message.contains(chatKeysMessagePrefix))
+      return "Loading message...";
+
+
+    return message.message;
   }
 
   Future<void> HandleMessage(String sessionName, Chat chat, Message message, bool isFromUs, List<Message> messages) async {
