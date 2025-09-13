@@ -155,6 +155,8 @@ class ChatConnection {
           m.media = (message["media"]);
 
           m.status = MessageAcknowledgementX.fromAck(message["ack"]);
+          m.ackId = message["ack"];
+          m.ackName = message["ackName"];
 
           return m;
         }).toList();

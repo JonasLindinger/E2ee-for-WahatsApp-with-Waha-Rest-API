@@ -151,7 +151,7 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     String startingMessage = message.message;
 
-    bool isNew = message.status == MessageAcknowledgement.delivered;
+    bool isNew = !message.fromMe && message.ackId == 3;
 
     if (message.message.contains(encryptedMessagePrefix)) {
       // A encrypted message has to be decrypted!
@@ -306,6 +306,8 @@ class Message {
   String from = "";
   bool fromMe = false;
   MessageAcknowledgement status = MessageAcknowledgement.delivered;
+  int ackId = -2;
+  String ackName = "";
   String to = "";
   String message = "";
   bool hasMedia = false;
