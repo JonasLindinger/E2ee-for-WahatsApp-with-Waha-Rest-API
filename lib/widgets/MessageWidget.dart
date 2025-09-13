@@ -15,12 +15,14 @@ import 'ChatWidget.dart';
 
 
 class MessageWidget extends StatefulWidget {
+  final List<Message> messages;
   final Message message;
   final Chat chat;
   final String sessionName;
 
   const MessageWidget({
     super.key,
+    required this.messages,
     required this.message,
     required this.chat,
     required this.sessionName,
@@ -48,7 +50,7 @@ class _MessageWidgetState extends State<MessageWidget> {
     final String sessionName = widget.sessionName;
     final bool isCurrentUser = message.fromMe;
 
-    HandleMessage(sessionName, chat, message, isCurrentUser);
+    HandleMessage(sessionName, chat, message, isCurrentUser, widget.messages);
 
     String normalizedMessage = normalizeLinks(message.message);
 
@@ -160,7 +162,7 @@ class _MessageWidgetState extends State<MessageWidget> {
     );
   }
 
-  Future<void> HandleMessage(String sessionName, Chat chat, Message message, bool isFromUs) async {
+  Future<void> HandleMessage(String sessionName, Chat chat, Message message, bool isFromUs, List<Message> messages) async {
     // Get Shared Preferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -169,16 +171,17 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     String startingMessage = message.message;
 
-    bool isNew = !message.fromMe && message.ackId == 3; // Todo: don't use ack, check for the next answer.
+    // If the newest message is this message, process it.
+    bool isNewestMessage = messages[0].id == message.id;
 
     if (message.message.contains(encryptedMessagePrefix)) {
       // A encrypted message has to be decrypted!
       message.message = await GetDecryptedMessage(prefs, chat, message);
     }
-    else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNew) {
+    else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNewestMessage) {
       // We got a chat key request and have to answer!
 
-      print("PPK found: FM: " + message.fromMe.toString() + ", HK: " + hasKeys.toString() + ", IN: " + isNew.toString() + ", M: " + message.message);
+      print("PPK found: FM: " + message.fromMe.toString() + ", HK: " + hasKeys.toString() + ", IN: " + isNewestMessage.toString() + ", M: " + message.message);
 
       // Send chat keys
       await SendChatKeys(
@@ -189,7 +192,7 @@ class _MessageWidgetState extends State<MessageWidget> {
         hasKeys
       );
     }
-    else if (!message.fromMe && !hasKeys && message.message.contains(chatKeysMessagePrefix) /*&& isNew*/) { // We should be able to ignore the isTrue part
+    else if (!message.fromMe && !hasKeys && message.message.contains(chatKeysMessagePrefix) /*&& isNewestMessage*/) { // We should be able to ignore the isTrue part
       // We got chat keys and should save them.
       await SaveChatKeys(prefs, chat, message);
     }

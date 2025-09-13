@@ -27,7 +27,8 @@ class ChatMessages extends StatelessWidget {
           MessageWidget(
             sessionName: sessionName,
             chat: chat,
-            message: messages[index]
+            message: messages[index],
+            messages: messages,
           ),
         controller: scrollController,
       ),
