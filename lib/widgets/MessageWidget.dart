@@ -1,5 +1,6 @@
 import 'package:basic_utils/basic_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/utils/RSAUtils.dart';
@@ -7,6 +8,7 @@ import 'package:secure_messanger_app/utils/TimeConverter.dart';
 import 'package:secure_messanger_app/widgets/ChatImage.dart';
 import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/chat.dart';
 import 'ChatWidget.dart';
@@ -47,6 +49,8 @@ class _MessageWidgetState extends State<MessageWidget> {
     final bool isCurrentUser = message.fromMe;
 
     HandleMessage(sessionName, chat, message, isCurrentUser);
+
+    String normalizedMessage = normalizeLinks(message.message);
 
     return Align(
       alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -89,14 +93,28 @@ class _MessageWidgetState extends State<MessageWidget> {
               if (message.message.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    message.message,
+                  child: SelectableLinkify(
+                    text: normalizedMessage,
                     style: TextStyle(
                       color: isCurrentUser ? Colors.black : Colors.white,
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
+                      decoration: TextDecoration.none,
                     ),
-                  ),
+                    linkStyle: const TextStyle(
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                      decorationThickness: 1.5,
+                    ),
+                    onOpen: (link) async {
+                      Uri uri = Uri.parse(link.url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        debugPrint("Could not open " + link.url);
+                      }
+                    },
+                  )
                 ),
               // Time + checkmarks row at bottom right
               Padding(
@@ -151,7 +169,7 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     String startingMessage = message.message;
 
-    bool isNew = !message.fromMe && message.ackId == 3;
+    bool isNew = !message.fromMe && message.ackId == 3; // Todo: don't use ack, check for the next answer.
 
     if (message.message.contains(encryptedMessagePrefix)) {
       // A encrypted message has to be decrypted!
@@ -297,6 +315,15 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     // Save keys
     prefs.setString(chatPrefPrefix + chat.id, rawChatKeys);
+  }
+
+  /// Normalizes text by adding "https://" in front of links that don't have a scheme.
+  String normalizeLinks(String text) {
+    return text.replaceAllMapped(
+      // Match anything that looks like a link but does not already start with http:// or https://
+      RegExp(r'(?<!https?:\/\/)(www\.[^\s]+)', caseSensitive: false),
+          (match) => "https://${match.group(1)}",
+    );
   }
 }
 
