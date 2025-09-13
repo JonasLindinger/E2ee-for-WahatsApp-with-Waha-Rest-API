@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/screens/connection.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:secure_messanger_app/utils/AppLifecycleHander.dart';
 
 late String serverURL;
 const String defaultSessionName = "default";
@@ -12,8 +11,6 @@ void main() async {
 
   // set variables from .env
   serverURL = dotenv.get("SERVER_IP_ADDRESS");
-
-  AppLifecycleHandler();
 
   // Run app
   runApp(const MyApp());
