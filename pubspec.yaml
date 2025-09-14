@@ -55,9 +55,10 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
-  image_path: "lib/AppStuff/AppIcon.png"
   android: true
   ios: true
+  image_path: "assets/icon/app_icon.png"              # your foreground icon
+  adaptive_icon_background: "assets/icon/app_icon_bg.png"  # optional background
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -80,6 +81,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - assets/icon/app_icon.png
+    - assets/icon/app_icon_bg.png
+
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
