@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -113,22 +114,31 @@ class _VideoMessageWidgetState extends State<VideoMessageWidget> {
           child: Column(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: thumbnail != null
-                    ? Stack(
-                  alignment: Alignment.center,
+                child: Stack(
+                  alignment: Alignment.center, // centers the overlay
                   children: [
-                    Image.memory(thumbnail!, fit: BoxFit.cover),
+                    ImageFiltered(
+                      imageFilter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      child: Image.memory(
+                        thumbnail!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white70),
+                      ),
+                    ),
                     Container(
-                      color: Colors.black45,
-                      child: const Icon(Icons.play_arrow,
-                          color: Colors.white, size: 40),
+                      decoration: BoxDecoration(
+                        color: Colors.black38, // semi-transparent background
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                     ),
                   ],
-                )
-                    : const SizedBox(
-                  height: 80,
-                  child: Center(child: CircularProgressIndicator()),
                 ),
               ),
             ],
