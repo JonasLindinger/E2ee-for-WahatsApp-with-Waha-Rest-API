@@ -24,7 +24,6 @@ class ChatConnection {
     required Chat chat,
     required Function() onSent,
   }) async {
-    print("SendKey 1");
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     String? keys = prefs.getString(chatPrefPrefix + chat.id);
@@ -32,8 +31,6 @@ class ChatConnection {
     if (chatIsEncrypted) {
       chatIsEncrypted = keys.isNotEmpty;
     }
-
-    print("SendKey 2");
 
     // We don't need to send the key. The chat is already encrypted.
     if (chatIsEncrypted) return;
@@ -43,7 +40,6 @@ class ChatConnection {
 
     String messageToSent = publicKey;
 
-    print("SendKey 3");
     await sendMessage(
       sessionName: sessionName,
       chat: chat,

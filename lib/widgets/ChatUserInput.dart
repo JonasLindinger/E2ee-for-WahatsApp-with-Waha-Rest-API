@@ -165,7 +165,7 @@ class _ChatUserInputState extends State<ChatUserInput> {
                       sessionName: sessionName,
                       chat: chat,
                       message: messageController.text,
-                      dontEncrypt: false,
+                      dontEncrypt: !encryptionButtonState,
                       onSent: onSent,
                     );
                     messageController.clear();
