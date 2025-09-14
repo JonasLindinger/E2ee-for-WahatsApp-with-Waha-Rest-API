@@ -6,6 +6,7 @@ import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/utils/RSAUtils.dart';
 import 'package:secure_messanger_app/utils/TimeConverter.dart';
 import 'package:secure_messanger_app/widgets/ChatImage.dart';
+import 'package:secure_messanger_app/widgets/VideoMessageWidget.dart';
 import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -85,6 +86,13 @@ class _MessageWidgetState extends State<MessageWidget> {
                       .startsWith('image/') ==
                       true)
                 Center(child: ChatImageWidget(message: message)),
+              // Video centered if exists
+              if (message.hasMedia &&
+                  (message.media['mimetype'] as String?)
+                      ?.toLowerCase()
+                      .startsWith('video/') ==
+                      true)
+                Center(child: VideoMessageWidget(message: message)),
               // Audio message
               if (message.hasMedia &&
                   (message.media['mimetype'] as String?)
