@@ -193,7 +193,12 @@ class _MessageWidgetState extends State<MessageWidget> {
 
     if (message.message.contains(encryptedMessagePrefix)) {
       // A encrypted message has to be decrypted!
-      message.message = await GetDecryptedMessage(prefs, chat, message);
+      try {
+        message.message = await GetDecryptedMessage(prefs, chat, message);
+      }
+      catch (e, st) {
+        print("No key found for chat to decrypt message.");
+      }
     }
     else if (!message.fromMe && hasKeys && message.message.contains(personalPublicKeyPrefix) && isNewestMessage) {
       // We got a chat key request and have to answer!
