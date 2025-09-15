@@ -8,7 +8,7 @@ import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/screens/chat.dart';
 import 'package:secure_messanger_app/widgets/ChatWidget.dart';
 
-import '../widgets/center_circle.dart';
+import '../widgets/CenterCircle.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/widgets/ChatAppBar.dart';
-import 'package:secure_messanger_app/widgets/ChatMesseges.dart';
+import 'package:secure_messanger_app/widgets/ChatMessagesWidget.dart';
 import 'package:secure_messanger_app/widgets/ChatUserInput.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -5,9 +5,9 @@ import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:secure_messanger_app/utils/Colors.dart';
 import 'package:secure_messanger_app/utils/RSAUtils.dart';
 import 'package:secure_messanger_app/utils/TimeConverter.dart';
-import 'package:secure_messanger_app/widgets/ChatImage.dart';
+import 'package:secure_messanger_app/widgets/ChatImageWidget.dart';
 import 'package:secure_messanger_app/widgets/VideoMessageWidget.dart';
-import 'package:secure_messanger_app/widgets/VoiceMessage.dart';
+import 'package:secure_messanger_app/widgets/VoiceMessageWidget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
