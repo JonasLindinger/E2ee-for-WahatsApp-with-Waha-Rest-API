@@ -7,7 +7,7 @@ import 'package:secure_messanger_app/widgets/ChatUserInput.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../widgets/ChatWidget.dart';
+import '../widgets/ChatListItemWidget.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;
@@ -71,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           // Display all messages
-          ChatMessages(
+          ChatMessagesWidget(
             chat: chat,
             messages: ChatConnection.messages,
             sessionName: sessionName,

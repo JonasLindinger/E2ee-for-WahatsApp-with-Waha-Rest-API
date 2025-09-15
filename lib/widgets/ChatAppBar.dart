@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../utils/Colors.dart';
-import 'ChatWidget.dart';
+import 'ChatListItemWidget.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Chat chat;

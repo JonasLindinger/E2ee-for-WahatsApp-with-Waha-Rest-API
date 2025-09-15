@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/widgets/MessageWidget.dart';
 
-import '../screens/ImageInspection.dart';
+import '../screens/ImageInspectionScreen.dart';
 
 class ChatImageWidget extends StatelessWidget {
   final Message message;

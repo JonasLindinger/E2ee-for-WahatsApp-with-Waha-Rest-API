@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
 
-import 'ChatWidget.dart';
+import 'ChatListItemWidget.dart';
 import 'MessageWidget.dart';
 
-class ChatMessages extends StatelessWidget {
+class ChatMessagesWidget extends StatelessWidget {
   final Chat chat;
   final List<Message> messages;
   final String sessionName;
   final ScrollController scrollController;
 
-  const ChatMessages({
+  const ChatMessagesWidget({
     super.key,
     required this.chat,
     required this.messages,

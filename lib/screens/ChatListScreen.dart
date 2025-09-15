@@ -5,19 +5,19 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
-import 'package:secure_messanger_app/screens/chat.dart';
-import 'package:secure_messanger_app/widgets/ChatWidget.dart';
+import 'package:secure_messanger_app/screens/ChatScreen.dart';
+import 'package:secure_messanger_app/widgets/ChatListItemWidget.dart';
 
 import '../widgets/CenterCircle.dart';
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class ChatListScreen extends StatefulWidget {
+  const ChatListScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _ChatListScreenState extends State<ChatListScreen> {
   List<Chat> chats = [];
 
   final ScrollController scrollController = ScrollController();
@@ -205,7 +205,7 @@ class _MainScreenState extends State<MainScreen> {
             child: ListView.builder(
               controller: scrollController,
               itemCount: chats.length,
-              itemBuilder: (context, index) => ChatListWidget(
+              itemBuilder: (context, index) => ChatListItemWidget(
                 chat: chats[index],
                 OpenChat: () => OpenChat(chats[index]),
               ),

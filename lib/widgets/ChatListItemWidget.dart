@@ -1,28 +1,27 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pointycastle/asymmetric/api.dart';
-import 'package:secure_messanger_app/screens/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/chat.dart';
+import '../screens/ChatScreen.dart';
 import '../utils/ChatConnection.dart';
 import '../utils/RSAUtils.dart';
 
-class ChatListWidget extends StatefulWidget {
+class ChatListItemWidget extends StatefulWidget {
   final Chat chat;
   final void Function()? OpenChat;
 
-  const ChatListWidget({
+  const ChatListItemWidget({
     super.key,
     required this.OpenChat,
     required this.chat,
   });
 
   @override
-  State<ChatListWidget> createState() => _ChatListWidgetState();
+  State<ChatListItemWidget> createState() => _ChatListItemWidgetState();
 }
 
-class _ChatListWidgetState extends State<ChatListWidget> {
+class _ChatListItemWidgetState extends State<ChatListItemWidget> {
   String latestMessage = "";
 
   late Chat chat;

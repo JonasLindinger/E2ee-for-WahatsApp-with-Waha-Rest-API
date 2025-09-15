@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:secure_messanger_app/screens/chat.dart';
+import 'package:secure_messanger_app/screens/ChatScreen.dart';
 import 'package:secure_messanger_app/utils/ChatConnection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'ChatWidget.dart';
+import 'ChatListItemWidget.dart';
 
 class ChatUserInput extends StatefulWidget {
   final FocusNode myFocusNode;

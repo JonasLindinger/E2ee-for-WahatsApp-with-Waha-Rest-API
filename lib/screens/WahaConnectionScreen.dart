@@ -4,19 +4,18 @@ import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/main.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
-import 'main.dart';
+import 'ChatListScreen.dart';
 
-class ConnectionScreen extends StatefulWidget {
-  const ConnectionScreen({super.key});
+class WahaConnectionScreen extends StatefulWidget {
+  const WahaConnectionScreen({super.key});
 
   @override
-  State<ConnectionScreen> createState() => _ConnectionScreenState();
+  State<WahaConnectionScreen> createState() => _WahaConnectionScreenState();
 }
 
-class _ConnectionScreenState extends State<ConnectionScreen> {
+class _WahaConnectionScreenState extends State<WahaConnectionScreen> {
   Uint8List? qrCodeBytes; // store the PNG bytes
 
   @override
@@ -67,7 +66,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     // Load the messanger!
     Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const MainScreen())
+        MaterialPageRoute(builder: (context) => const ChatListScreen())
     );
   }
 

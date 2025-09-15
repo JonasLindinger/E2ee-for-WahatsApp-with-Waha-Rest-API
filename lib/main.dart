@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:secure_messanger_app/screens/connection.dart';
+import 'package:secure_messanger_app/screens/WahaConnectionScreen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 late String serverURL;
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "Secure Messanger App",
-      home: const ConnectionScreen(),
+      home: const WahaConnectionScreen(),
     );
   }
 }

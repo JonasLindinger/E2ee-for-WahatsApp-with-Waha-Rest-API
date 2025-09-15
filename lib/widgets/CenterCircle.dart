@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:secure_messanger_app/screens/settings.dart'; // Import your settings file
+import 'package:secure_messanger_app/screens/SettingsScreen.dart'; // Import your settings file
 
 class CenterCircle extends StatelessWidget {
   final Color color;
@@ -24,7 +24,7 @@ class CenterCircle extends StatelessWidget {
           Navigator.push(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const Settings(),
+              pageBuilder: (context, animation, secondaryAnimation) => const SettingsScreen(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 // You can choose different animations here
                 // Example 1: Fade-in Transition

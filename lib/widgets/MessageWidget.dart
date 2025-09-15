@@ -11,8 +11,8 @@ import 'package:secure_messanger_app/widgets/VoiceMessageWidget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../screens/chat.dart';
-import 'ChatWidget.dart';
+import '../screens/ChatScreen.dart';
+import 'ChatListItemWidget.dart';
 
 
 class MessageWidget extends StatefulWidget {

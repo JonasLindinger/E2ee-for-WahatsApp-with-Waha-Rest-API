@@ -6,8 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart';
-import '../screens/chat.dart';
-import '../widgets/ChatWidget.dart';
+import '../screens/ChatScreen.dart';
+import '../widgets/ChatListItemWidget.dart';
 import '../widgets/MessageWidget.dart';
 import 'RSAUtils.dart';
 
