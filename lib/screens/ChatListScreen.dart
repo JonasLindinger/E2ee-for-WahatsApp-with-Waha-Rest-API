@@ -1,13 +1,9 @@
 import 'dart:convert';
-import 'dart:ffi';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:secure_messanger_app/main.dart';
 import 'package:secure_messanger_app/screens/ChatScreen.dart';
 import 'package:secure_messanger_app/widgets/ChatListItemWidget.dart';
-
 import '../widgets/CenterCircle.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -29,9 +25,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     scrollController.addListener(() {
       if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
-        if (!mounted) return; // State was disposed; abort.
+        if (!mounted) return;
 
-        // Load new messages
         getChats(defaultSessionName, false);
       }
     });
@@ -197,9 +192,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ),
       ),
-      body: Stack( // Das Stack-Widget ist der Schlüssel zur Überlagerung von Widgets
+      body: Stack(
         children: [
-          // Dein ListView.builder, der den Hauptinhalt darstellt
           Container(
             margin: const EdgeInsets.only(top: 20),
             child: ListView.builder(
@@ -211,7 +205,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ),
             ),
           ),
-          // Dein CenterCircle-Widget, das oben drauf positioniert wird
           CenterCircle(
             color: Colors.green,
             icon: Icons.add,

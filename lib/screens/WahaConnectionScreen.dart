@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:secure_messanger_app/main.dart';
 import 'package:http/http.dart' as http;
@@ -31,7 +30,7 @@ class _WahaConnectionScreenState extends State<WahaConnectionScreen> {
       body: Center(
           child:
           qrCodeBytes == null ?
-          const Text( // Todo: Make animation instead of Loading text
+          const Text(
             "Loading...",
             style: TextStyle(
               color: Colors.white,
@@ -49,12 +48,7 @@ class _WahaConnectionScreenState extends State<WahaConnectionScreen> {
 
     print("TryCreateSession");
     await TryCreateSession(sessionName);
-    /*
-    print("WaitForStatus " + "STOPPED");
-    await WaitForStatus(sessionName, "STOPPED");
-    print("StartSession");
-    await StartSession(sessionName);
-    */
+
     String status = await SessionStarted(sessionName);
 
     if (status == "SCAN_QR_CODE") {
@@ -126,9 +120,6 @@ class _WahaConnectionScreenState extends State<WahaConnectionScreen> {
 
       if (response.statusCode == 200) {
         // If server sends base64 JSON, decode first
-        // final json = jsonDecode(response.body);
-        // final base64String = json['image']; // adjust key if needed
-        // final bytes = base64Decode(base64String);
 
         // If server sends raw PNG bytes
         final bytes = response.bodyBytes;

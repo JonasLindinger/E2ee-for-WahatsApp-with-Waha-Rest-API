@@ -14,7 +14,7 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Einstellungen',
+          'Settings',
           style: TextStyle(color: Colors.white), // Text color to be visible on black background
         ),
       ),

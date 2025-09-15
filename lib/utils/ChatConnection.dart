@@ -95,10 +95,10 @@ class ChatConnection {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "chatId": chat.id,
-          "reply_to": null, // Todo
+          "reply_to": null, // Todo: add reply system
           "text": messageToSent,
-          "linkPreview": false, // Todo
-          "linkPreviewHighQuality": false, // Todo
+          "linkPreview": false, // Todo: implement that maybe..?
+          "linkPreviewHighQuality": false, // Todo: implement that maybe..?
           "session": sessionName
         }),
       );
@@ -281,7 +281,7 @@ class ChatConnection {
     oldestMessageTimeStamp = 0;
     isPulling = false;
 
-    // 🔥 Load saved keys instead of wiping them
+    // Load saved keys instead of wiping them
     final prefs = await SharedPreferences.getInstance();
     final savedKeys = prefs.getString(chatPrefPrefix + chat.id);
     chatKeys = (savedKeys != null && savedKeys.isNotEmpty)
@@ -291,7 +291,7 @@ class ChatConnection {
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
-        "downloadMedia": "true", // Todo
+        "downloadMedia": "true", // Todo: make this a setting or something like that.
         "chatId": chat.id.toString(),
         "limit": "20",
         "offset": "0",
@@ -307,7 +307,7 @@ class ChatConnection {
     final url = serverURL + "/api/" + sessionName + "/chats/" + chat.id + "/messages";
     final uri = Uri.parse(url).replace(
       queryParameters: {
-        "downloadMedia": "true", // Todo
+        "downloadMedia": "true", // Todo: make this a setting or something like that.
         "chatId": chat.id.toString(),
         "limit": "20",
         "filter.timestamp.lte": oldestMessageTimeStamp.toString(),

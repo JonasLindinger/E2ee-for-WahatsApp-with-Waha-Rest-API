@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../utils/Colors.dart';
@@ -64,12 +63,10 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget NotWhatsAppLikeAppBar() {
     return Row(
       children: [
-        // 1. Ein Expanded-Widget, das den Platz links vom Namen füllt
         const Expanded(
           child: SizedBox(),
         ),
 
-        // 2. Der Name, der nun durch die Expanded-Widgets zentriert wird
         Text(
           chat.name,
           style: const TextStyle(
@@ -79,13 +76,10 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
 
-        // 3. Ein Expanded-Widget, das den gesamten verbleibenden Platz füllt
-        //    und das Profilbild nach ganz rechts schiebt.
         const Expanded(
           child: SizedBox(),
         ),
 
-        // 4. Das Profilbild, das nun ganz rechts steht
         Container(
           width: 40,
           height: 40,

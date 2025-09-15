@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 const OwnMessage = Color.fromRGBO(143, 206, 0, 1.0);
