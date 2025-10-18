@@ -1,4 +1,4 @@
-# AI Generated README ✅
+> 🤖 **AI-Generated README**
 
 # E2EE for WhatsApp
 
