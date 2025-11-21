@@ -59,6 +59,3 @@ This project is meant for users who prioritize privacy and want additional encry
 Each user must have their own Waha server to enable encrypted chats.
 Encryption is optional and can be toggled per chat.
 Keep your conversations private. Even WhatsApp won't be able to read them!
-
-If you want, I can also make a **super-compact, visually appealing version with badges, sections for screenshots, and feature icons** that would look professional on GitHub. It would make your project look more “polished” for users.  
-Do you want me to do that?
